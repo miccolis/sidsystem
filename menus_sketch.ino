@@ -42,28 +42,29 @@ const int BUTTON = 8;
 #define PARAM_UNAVAIL 0
 #define PARAM_LABEL 1
 #define PARAM_YESNO 2
-#define PARAM_PERCENT 3
+#define PARAM_PERCENT 3 // unused...
 #define PARAM_4BIT 4
+
+// Should these be defines?
+const int MENU_START = -1;
+const int MENU_HOME = 0;
+const int MENU_PATCH = 1;
+const int MENU_PARAM = 2;
+const int MENU_CONFIRM = 4;
 
 /*
  * Global state.
  */
+
 signed int encoderVal;  // Store the encoder's rotation counts
 
-// Should these be defines?
-const int MENU_HOME = 0;
-const int MENU_PATCH= 1;
-const int MENU_PARAM= 2;
-const int MENU_CONFIRM= 4;
-
 // Combine these eventually?
-int menuState = 0;
+int menuState = MENU_START;
 int menuPatch = 0;
 int menuParam = 0;
 
 void setup() {
     lcd.begin(16, 2);
-    lcd.print("<< powered up >>");
 
     //Serial.begin(9600); // For debugging.
     
@@ -97,68 +98,93 @@ void loop() {
     }
 
     updateMenu(menuState, menuPatch, menuParam);
+    delay(20);
 }
 
-void updateMenu(int type, int patch, int param) {
-    static unsigned long refreshed;
-    static int prevType;
-    static int prevEncoderVal;
+void updateMenu(int page, int patch, int param) {
+    static int curPage;
+    static int curEncoderVal;
 
-    char patchName[PATCHNAME_LEN];
-    char paramName[PARAMNAME_LEN];
+    char patchString[PATCHNAME_LEN];
+    char paramString[PARAMNAME_LEN];
+    char optionString[PARAMNAME_LEN];
 
-    // Limit LCD updates to every 10ms.
-    unsigned long t = millis();
-    if (t < refreshed + 10) return;
-    refreshed = t;
-    
-    if (prevType != type) {
-        prevType = type;
+    if (curPage != page) {
+        curPage = page;
 
-        switch (type) {
+        encoderVal = 0;
+        curEncoderVal = -1;
+
+        switch (page) {
+            case MENU_START:
+                lcd.print("<< powered up >>");
+                menuState = MENU_HOME;
+                menuPatch = 0;
+                menuParam = 0;
+                delay(2000);
+                return;
             case MENU_HOME:
-                if (loadPatchName(patch, patchName)) {
+                if (loadPatchName(patch, patchString)) {
                     lcd.clear();
-                    lcd.setCursor(0, 0);
-                    lcd.print(patchName);
+                    lcd.print(patchString);
                 }
                 break;
             case MENU_PATCH:
-                if (loadPatchName(patch, patchName) &&
-                    loadParamName(patch, paramName)
-                ) {
+                if (loadPatchName(patch, patchString)) {
                     lcd.clear();
-                    lcd.setCursor(0, 0);
-                    lcd.print(patchName);
-                    lcd.setCursor(0, 1);
-                    lcd.print(paramName);
+                    lcd.print(patchString);
                 }
                 break;
             case MENU_PARAM:
-                if (loadPatchName(patch, patchName) &&
-                    loadParamName(patch, paramName)
+                if (loadPatchName(patch, patchString) &&
+                    loadParamName(patch, paramString)
                 ) {
                     lcd.clear();
-                    lcd.setCursor(0, 0);
-                    lcd.print(paramName);
+                    lcd.print(patchString);
                     lcd.setCursor(0, 1);
-                    lcd.print(encoderVal);
+                    lcd.print(paramString);
                 }
                 break;
             case MENU_CONFIRM:
                 lcd.clear();
-                lcd.setCursor(0, 0);
                 lcd.print("Are you sure?");
-                lcd.setCursor(0, 1);
-                lcd.print("YES");
                 break;
         }
     }
 
-    if (prevEncoderVal != encoderVal) {
-        prevEncoderVal = encoderVal;
-        lcd.setCursor(0,1);
-        lcd.print(encoderVal);
+    if (curEncoderVal != encoderVal) {
+        curEncoderVal = encoderVal;
+
+        lcd.setCursor(0,1); // encoder always operates on second line.
+        // TODO clear out this line
+
+        int optType;
+
+        switch(page) {
+            case MENU_HOME:
+                if (loadPatchName(curEncoderVal, patchString))
+                    lcd.print(patchString);
+                break;
+            case MENU_PATCH:
+                if (loadParamName(curEncoderVal, paramString))
+                    lcd.print(paramString);
+                break;
+            case MENU_PARAM:
+                optType = loadParamOption(param, curEncoderVal, optionString);
+                if (optType == PARAM_LABEL) {
+                    lcd.print(optionString);
+                }
+                else if (optType == PARAM_YESNO) {
+                    lcd.print(curEncoderVal & 1 ? "YES" : "NO");
+                }
+                else if (optType == PARAM_4BIT) {
+                    lcd.print(curEncoderVal);
+                }
+                break;
+            case MENU_CONFIRM:
+                lcd.print(curEncoderVal & 1 ? "YES" : "NO");
+                break;
+        }
     }
 }
 
