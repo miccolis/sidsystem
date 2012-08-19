@@ -19,14 +19,17 @@
  
  * knob A to pin 2
  * knob B to pin 3
- * knob button pin 8 (w/ pulldown resistor)
+ * knob button pin 8 // TODO switch to internal pull-up
+
+ * Esc button (momentary switch) to pin 9
  
  */
 
 LiquidCrystal lcd(12, 11, 7, 6, 5, 4);
-const int ENC_A = 2;
-const int ENC_B = 3;
-const int BUTTON = 8;
+const int enc_a = 2;
+const int enc_b = 3;
+const int enc_button = 8;
+const int button_esc = 9;
 
 // These three defines (ROTATION_SPEED, ENCODER_POSITION_MAX, and
 // ENCODER_POSITION_MIN) control how fast the circular bar graph
@@ -52,6 +55,9 @@ const int MENU_PATCH = 1;
 const int MENU_PARAM = 2;
 const int MENU_CONFIRM = 4;
 
+const int lcd_width = 16;
+const int lcd_lines = 2;
+
 /*
  * Global state.
  */
@@ -64,16 +70,18 @@ int menuPatch = 0;
 int menuParam = 0;
 
 void setup() {
-    lcd.begin(16, 2);
-
+    lcd.begin(lcd_width, lcd_lines);
     //Serial.begin(9600); // For debugging.
     
-    pinMode(BUTTON, INPUT);
+    pinMode(enc_button, INPUT);
     
-    pinMode(ENC_A, INPUT);
-    digitalWrite(ENC_A, HIGH);
-    pinMode(ENC_B, INPUT);
-    digitalWrite(ENC_B, HIGH);
+    pinMode(enc_a, INPUT);
+    digitalWrite(enc_a, HIGH);
+    pinMode(enc_b, INPUT);
+    digitalWrite(enc_b, HIGH);
+
+    pinMode(button_esc, INPUT);
+    digitalWrite(button_esc, HIGH);
     
     noInterrupts();
     attachInterrupt(0, readEncoder, CHANGE);
@@ -82,32 +90,43 @@ void setup() {
 }
 
 void loop() {
-    static unsigned long pressed;
-    static short int buttonState;
+    pollButtons();
+    updateMenu(menuState, menuPatch, menuParam);
+    delay(20);
+}
 
-    if (buttonState != digitalRead(BUTTON)) {
-        unsigned long t = millis();
-        if (t > pressed + 100) {
-            pressed = t;
-            buttonState = digitalRead(BUTTON);
-            if (buttonState == 0) {
-                if (menuState == MENU_CONFIRM) menuState = MENU_PARAM;
-                else menuState++;
+void pollButtons() {
+    static int buttons[2] = {enc_button, button_esc};
+    static unsigned long pressed[2];
+    static short int buttonState[2];
+    unsigned long t = millis();
+
+    for (int i = 0; i < 2; i++) {
+        if (buttonState[i] != digitalRead(buttons[i])) {
+            if (t > pressed[i] + 100) {
+                pressed[i] = t;
+                buttonState[i] = digitalRead(buttons[i]);
+                // Knob push
+                if (buttons[i] == enc_button && buttonState[i] == 0) {
+                    if (menuState == MENU_CONFIRM) menuState = MENU_PARAM;
+                    else menuState++;
+                }
+                // Esc
+                if (buttons[i] == button_esc && buttonState[i] == 0) {
+                    if (menuState != MENU_HOME) menuState--;
+                }
             }
         }
     }
-
-    updateMenu(menuState, menuPatch, menuParam);
-    delay(20);
 }
 
 void updateMenu(int page, int patch, int param) {
     static int curPage;
     static int curEncoderVal;
 
-    char patchString[PATCHNAME_LEN];
-    char paramString[PARAMNAME_LEN];
-    char optionString[PARAMNAME_LEN];
+    char patchString[PATCHNAME_LEN] = {' '};
+    char paramString[PARAMNAME_LEN]= {' '};
+    char optionString[PARAMNAME_LEN]= {' '};
 
     if (curPage != page) {
         curPage = page;
@@ -140,8 +159,6 @@ void updateMenu(int page, int patch, int param) {
                     loadParamName(patch, paramString)
                 ) {
                     lcd.clear();
-                    lcd.print(patchString);
-                    lcd.setCursor(0, 1);
                     lcd.print(paramString);
                 }
                 break;
@@ -155,35 +172,29 @@ void updateMenu(int page, int patch, int param) {
     if (curEncoderVal != encoderVal) {
         curEncoderVal = encoderVal;
 
-        lcd.setCursor(0,1); // encoder always operates on second line.
-        // TODO clear out this line
-
-        int optType;
-
-        switch(page) {
-            case MENU_HOME:
-                if (loadPatchName(curEncoderVal, patchString))
-                    lcd.print(patchString);
-                break;
-            case MENU_PATCH:
-                if (loadParamName(curEncoderVal, paramString))
-                    lcd.print(paramString);
-                break;
-            case MENU_PARAM:
-                optType = loadParamOption(param, curEncoderVal, optionString);
-                if (optType == PARAM_LABEL) {
-                    lcd.print(optionString);
-                }
-                else if (optType == PARAM_YESNO) {
-                    lcd.print(curEncoderVal & 1 ? "YES" : "NO");
-                }
-                else if (optType == PARAM_4BIT) {
-                    lcd.print(curEncoderVal);
-                }
-                break;
-            case MENU_CONFIRM:
+        lcdClearLn(1);
+        if (page == MENU_HOME) {
+            if (loadPatchName(curEncoderVal, patchString))
+                lcd.print(patchString);
+        }
+        else if (page == MENU_PATCH) {
+            if (loadParamName(curEncoderVal, paramString))
+                lcd.print(paramString);
+        }
+        else if (page == MENU_PARAM) {
+            int optType = loadParamOption(param, curEncoderVal, optionString);
+            if (optType == PARAM_LABEL) {
+                lcd.print(optionString);
+            }
+            else if (optType == PARAM_YESNO) {
                 lcd.print(curEncoderVal & 1 ? "YES" : "NO");
-                break;
+            }
+            else if (optType == PARAM_4BIT) {
+                lcd.print(curEncoderVal);
+            }
+        }
+        else if (page == MENU_CONFIRM) {
+            lcd.print(curEncoderVal & 1 ? "YES" : "NO");
         }
     }
 }
@@ -204,7 +215,7 @@ boolean loadParamName(int param, char *pStr) {
 int loadParamOption(int param, int idx, char *pStr) {
     switch (param) {
         case 0: // Waveform
-            if      (idx == 0) setString("Tre", pStr, PARAMNAME_LEN);
+            if      (idx == 0) setString("Triangle", pStr, PARAMNAME_LEN);
             else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
             else if (idx == 2) setString("Pulse", pStr, PARAMNAME_LEN);
             else if (idx == 4) setString("Noise", pStr, PARAMNAME_LEN);
@@ -237,6 +248,13 @@ void setString(const char src[], char *dest, int len) {
         dest[i] = '\0';
 }
 
+void lcdClearLn(int l) {
+    for (int i = 0; i < lcd_width; i++) {
+        lcd.setCursor(i, l);
+        lcd.write(' ');
+    }
+    lcd.setCursor(0, l);
+}
 
 // interrupt handler for the rotary encoder.
 void readEncoder() {
@@ -255,7 +273,7 @@ void readEncoder() {
   // First, find the newEncoderState. This'll be a 2-bit value
   // the msb is the state of the B pin. The lsb is the state
   // of the A pin on the encoder.
-  newEncoderState = (digitalRead(ENC_B)<<1) | (digitalRead(ENC_A));
+  newEncoderState = (digitalRead(enc_b)<<1) | (digitalRead(enc_a));
   
   // Now we pair oldEncoderState with new encoder state
   // First we need to shift oldEncoder state left two bits.
