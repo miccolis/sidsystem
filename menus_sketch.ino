@@ -39,6 +39,12 @@ const int BUTTON = 8;
 #define PATCHNAME_LEN 8 // Max length of patch names.
 #define PARAMNAME_LEN 8 // Max length of paramnames.
 
+#define PARAM_UNAVAIL 0
+#define PARAM_LABEL 1
+#define PARAM_YESNO 2
+#define PARAM_PERCENT 3
+#define PARAM_4BIT 4
+
 /*
  * Global state.
  */
@@ -75,16 +81,8 @@ void setup() {
 }
 
 void loop() {
-    static int prevEncoderPos;
     static unsigned long pressed;
     static short int buttonState;
-
-    //if (prevEncoderPos != encoderVal) {
-    //    prevEncoderPos = encoderVal;
-    //    updateMenu(0, encoderVal);
-    //    lcd.setCursor(0,1);
-    //    lcd.print(encoderVal);
-    //}
 
     if (buttonState != digitalRead(BUTTON)) {
         unsigned long t = millis();
@@ -97,54 +95,74 @@ void loop() {
             }
         }
     }
+
     updateMenu(menuState, menuPatch, menuParam);
 }
 
 void updateMenu(int type, int patch, int param) {
-    static int prev;
-    boolean avail = false;
+    static unsigned long refreshed;
+    static int prevType;
+    static int prevEncoderVal;
+
     char patchName[PATCHNAME_LEN];
     char paramName[PARAMNAME_LEN];
 
-    if (prev == type) return;
-    prev = type;
+    // Limit LCD updates to every 10ms.
+    unsigned long t = millis();
+    if (t < refreshed + 10) return;
+    refreshed = t;
+    
+    if (prevType != type) {
+        prevType = type;
 
-    switch (type) {
-        case MENU_HOME:
-            if (loadPatchName(patch, patchName)) {
+        switch (type) {
+            case MENU_HOME:
+                if (loadPatchName(patch, patchName)) {
+                    lcd.clear();
+                    lcd.setCursor(0, 0);
+                    lcd.print(patchName);
+                }
+                break;
+            case MENU_PATCH:
+                if (loadPatchName(patch, patchName) &&
+                    loadParamName(patch, paramName)
+                ) {
+                    lcd.clear();
+                    lcd.setCursor(0, 0);
+                    lcd.print(patchName);
+                    lcd.setCursor(0, 1);
+                    lcd.print(paramName);
+                }
+                break;
+            case MENU_PARAM:
+                if (loadPatchName(patch, patchName) &&
+                    loadParamName(patch, paramName)
+                ) {
+                    lcd.clear();
+                    lcd.setCursor(0, 0);
+                    lcd.print(paramName);
+                    lcd.setCursor(0, 1);
+                    lcd.print(encoderVal);
+                }
+                break;
+            case MENU_CONFIRM:
                 lcd.clear();
                 lcd.setCursor(0, 0);
-                lcd.print(patchName);
-            }
-            break;
-        case MENU_PATCH:
-            if (loadPatchName(patch, patchName) && loadParamName(patch, paramName)) {
-                lcd.clear();
-                lcd.setCursor(0, 0);
-                lcd.print(patchName);
+                lcd.print("Are you sure?");
                 lcd.setCursor(0, 1);
-                lcd.print(paramName);
-            }
-            break;
-        case MENU_PARAM:
-            if (loadPatchName(patch, patchName) && loadParamName(patch, paramName)) {
-                lcd.clear();
-                lcd.setCursor(0, 0);
-                lcd.print(paramName);
-                lcd.setCursor(0, 1);
-                lcd.print(encoderVal);
-            }
-            break;
-        case MENU_CONFIRM:
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("Are you sure?");
-            lcd.setCursor(0, 1);
-            lcd.print("YES");
-            break;
+                lcd.print("YES");
+                break;
+        }
+    }
+
+    if (prevEncoderVal != encoderVal) {
+        prevEncoderVal = encoderVal;
+        lcd.setCursor(0,1);
+        lcd.print(encoderVal);
     }
 }
 
+// Load a parameter label. Return true on success.
 boolean loadParamName(int param, char *pStr) {
     switch (param) {
         case 0: setString("Waveform", pStr, PARAMNAME_LEN); return true;
@@ -156,6 +174,26 @@ boolean loadParamName(int param, char *pStr) {
     return false;
 }
 
+// Load a parameter name. See PARAM_X for return values.
+int loadParamOption(int param, int idx, char *pStr) {
+    switch (param) {
+        case 0: // Waveform
+            if      (idx == 0) setString("Tre", pStr, PARAMNAME_LEN);
+            else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
+            else if (idx == 2) setString("Pulse", pStr, PARAMNAME_LEN);
+            else if (idx == 4) setString("Noise", pStr, PARAMNAME_LEN);
+            else return PARAM_UNAVAIL;
+            return PARAM_LABEL;
+            break;
+        case 1: return PARAM_4BIT; // Attach
+        case 2: return PARAM_4BIT; // Decay
+        case 3: return PARAM_4BIT; // Sustain
+        case 4: return PARAM_4BIT; // Release
+    }
+    return PARAM_UNAVAIL;
+}
+
+// Load a patch label. Return true on success.
 boolean loadPatchName(int patch, char *pStr) {
     switch (patch) {
         case 0: setString("Bleep", pStr, PATCHNAME_LEN); return true;
