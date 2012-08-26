@@ -166,9 +166,11 @@ void updateMenu(int page, int patchId, int param) {
 
     if (curPage != page) {
         curPage = page;
-
-        encoderVal = 0;
         curEncoderVal = -1;
+        encoderVal = 0;
+
+        // TODO can we / should we assume success?
+        if (curProgram.id != patchId) loadPatch(patchId, pCurProgram);
 
         switch (page) {
             case MENU_START:
