@@ -1,8 +1,5 @@
 /* Menus! */
 
-// include the library code:
-#include <LiquidCrystal.h>
-
 /*
  The circuit:
 
@@ -42,6 +39,9 @@ Shift register B
  * DS to Shift register Q7'
  
  */
+
+#include <LiquidCrystal.h>
+#include "patch.h"
 
 LiquidCrystal lcd(12, 11, 7, 6, 5, 4);
 const int enc_a = 2;
@@ -152,9 +152,13 @@ void pollButtons() {
 }
 
 // Update the GUI based on system state change.
-void updateMenu(int page, int patch, int param) {
+void updateMenu(int page, int patchId, int param) {
     static int curPage;
     static int curEncoderVal;
+    static patch curProgram;
+
+    patch *pCurProgram;
+    pCurProgram = &curProgram;
 
     char patchString[PATCHNAME_LEN] = {' '};
     char paramString[PARAMNAME_LEN]= {' '};
@@ -175,20 +179,20 @@ void updateMenu(int page, int patch, int param) {
                 delay(2000);
                 return;
             case MENU_HOME:
-                if (loadPatchName(patch, patchString)) {
+                if (loadPatchName(curProgram.id, patchString)) {
                     lcd.clear();
                     lcd.print(patchString);
                 }
                 break;
             case MENU_PATCH:
-                if (loadPatchName(patch, patchString)) {
+                if (loadPatchName(curProgram.id, patchString)) {
                     lcd.clear();
                     lcd.print(patchString);
                 }
                 break;
             case MENU_PARAM:
-                if (loadPatchName(patch, patchString) &&
-                    loadParamName(patch, paramString)
+                if (loadPatchName(curProgram.id, patchString) &&
+                    loadParamName(curEncoderVal, paramString)
                 ) {
                     lcd.clear();
                     lcd.print(paramString);
@@ -312,13 +316,19 @@ int loadParamOption(int param, int idx, char *pStr) {
 }
 
 // Load a patch label. Return true on success.
-boolean loadPatchName(int patch, char *pStr) {
-    switch (patch) {
-        case 0: setString("Bleep", pStr, PATCHNAME_LEN); return true;
-        case 1: setString("Spacey", pStr, PATCHNAME_LEN); return true;
-        case 2: setString("Belong", pStr, PATCHNAME_LEN); return true;
-    }
-    return false;
+boolean loadPatchName(int id, char *pStr) {
+    patch p;
+    loadPatch(id, &p);
+    setString(p.name, pStr, PATCHNAME_LEN);
+    return true;
+}
+
+boolean loadPatch(int id, patch *pProg) {
+    // Currently we have four hard coded patches
+    if (id < 0) id = 0;
+    if (id > 3) id = 3;
+
+    return loadFactoryDefaultPatch(id, pProg);
 }
 
 void setString(const char src[], char *dest, int len) {
@@ -371,4 +381,84 @@ void readEncoder() {
   encoderVal += enc_states[oldEncoderState];
   
   interrupts();
+}
+
+boolean copyPatch(patch *pSrc, patch *pDest) {
+    pDest->waveOscA = pSrc->waveOscA;
+    pDest->attackOscA = pSrc->attackOscA;
+    pDest->decayOscA = pSrc->decayOscA;
+    pDest->sustainOscA = pSrc->sustainOscA;
+    pDest->releaseOscA = pSrc->releaseOscA;
+
+    pDest->waveOscB = pSrc->waveOscB;
+    pDest->attackOscB = pSrc->attackOscB;
+    pDest->decayOscB = pSrc->decayOscB;
+    pDest->sustainOscB = pSrc->sustainOscB;
+    pDest->releaseOscB = pSrc->releaseOscB;
+
+    pDest->waveOscC = pSrc->waveOscC;
+    pDest->attackOscC = pSrc->attackOscC;
+    pDest->decayOscC = pSrc->decayOscC;
+    pDest->sustainOscC = pSrc->sustainOscC;
+    pDest->releaseOscC = pSrc->releaseOscC;
+ 
+    pDest->cutoff = pSrc->cutoff;
+    pDest->resonance = pSrc->resonance;
+    pDest->bypass = pSrc->bypass;
+    pDest->mode = pSrc->mode;
+
+    pDest->volume = pSrc->volume;
+
+    pDest->id = pSrc->id;
+    setString(pSrc->name, pDest->name, PATCHNAME_LEN);
+    return true;
+}
+
+boolean loadFactoryDefaultPatch(int id, patch *pProg) {
+    patch *pfactory;
+    if (id == 0) {
+        patch factory = {
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            id, "Bleep",
+        };
+        pfactory = &factory;
+        return copyPatch(pfactory, pProg);
+    }
+    else if (id == 1) {
+        patch factory = {
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            id, "Spacey",
+        };
+        pfactory = &factory;
+        return copyPatch(pfactory, pProg);
+    }
+    else if (id == 2) {
+        patch factory = {
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            id, "Belong",
+        };
+        pfactory = &factory;
+        return copyPatch(pfactory, pProg);
+    }
+    else if (id == 3) {
+        patch factory = {
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5,
+            id, "Disaste",
+        };
+        pfactory = &factory;
+        return copyPatch(pfactory, pProg);
+    }
+    return false;
 }
