@@ -90,6 +90,7 @@ void setup() {
     //Serial.begin(9600); // For debugging.
     
     pinMode(enc_button, INPUT);
+    digitalWrite(enc_button, HIGH);
     
     pinMode(enc_a, INPUT);
     digitalWrite(enc_a, HIGH);
