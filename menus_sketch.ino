@@ -58,12 +58,10 @@ const int button_esc = 9;
 #define ENCODER_POSITION_MIN  0  // Don't go below 0
 
 #define PATCHNAME_LEN 8 // Max length of patch names.
-#define PARAMNAME_LEN 8 // Max length of paramnames.
+#define PARAMNAME_LEN 8 // Max length of param names.
 
 #define PARAM_UNAVAIL 0
 #define PARAM_LABEL 1
-#define PARAM_YESNO 2
-#define PARAM_PERCENT 3 // unused...
 #define PARAM_4BIT 4
 
 // Should these be defines?
@@ -113,6 +111,8 @@ void loop() {
     delay(20);
 }
 
+// Responsible for detecting button presses and making the appropriate updates
+// to system state.
 void pollButtons() {
     static int buttons[2] = {enc_button, button_esc};
     static unsigned long pressed[2];
@@ -120,24 +120,37 @@ void pollButtons() {
     unsigned long t = millis();
 
     for (int i = 0; i < 2; i++) {
-        if (buttonState[i] != digitalRead(buttons[i])) {
-            if (t > pressed[i] + 100) {
-                pressed[i] = t;
-                buttonState[i] = digitalRead(buttons[i]);
-                // Knob push
-                if (buttons[i] == enc_button && buttonState[i] == 0) {
-                    if (menuState == MENU_CONFIRM) menuState = MENU_PARAM;
-                    else menuState++;
+        if (buttonState[i] != digitalRead(buttons[i]) &&(t > pressed[i] + 100)) {
+            pressed[i] = t;
+            buttonState[i] = digitalRead(buttons[i]);
+            // Knob push
+            if (buttons[i] == enc_button && buttonState[i] == 0) {
+                if (menuState == MENU_HOME) {
+                    menuPatch = encoderVal;
+                    menuState++;
                 }
-                // Esc
-                if (buttons[i] == button_esc && buttonState[i] == 0) {
-                    if (menuState != MENU_HOME) menuState--;
+                else if (menuState == MENU_PATCH) {
+                    menuParam = encoderVal;
+                    menuState++;
                 }
+                else if (menuState == MENU_PARAM) {
+                    // TODO need space for this.
+                    menuState++;
+                }
+                else if (menuState == MENU_CONFIRM) {
+                    // TODO save changes.
+                    menuState = MENU_PARAM;
+                }
+            }
+            // Esc button
+            if (buttons[i] == button_esc && buttonState[i] == 0) {
+                if (menuState != MENU_HOME) menuState--;
             }
         }
     }
 }
 
+// Update the GUI based on system state change.
 void updateMenu(int page, int patch, int param) {
     static int curPage;
     static int curEncoderVal;
@@ -203,9 +216,6 @@ void updateMenu(int page, int patch, int param) {
             int optType = loadParamOption(param, curEncoderVal, optionString);
             if (optType == PARAM_LABEL) {
                 lcd.print(optionString);
-            }
-            else if (optType == PARAM_YESNO) {
-                lcd.print(curEncoderVal & 1 ? "YES" : "NO");
             }
             else if (optType == PARAM_4BIT) {
                 lcd.print(curEncoderVal);
