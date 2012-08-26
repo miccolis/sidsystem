@@ -6,22 +6,40 @@
 /*
  The circuit:
 
- * LCD RS pin to digital pin 12
- * LCD Enable pin to digital pin 11
- * LCD D4 pin to digital pin 7
- * LCD D5 pin to digital pin 6
- * LCD D6 pin to digital pin 5
- * LCD D7 pin to digital pin 4
- * LCD R/W pin to ground
+LCD
+
+ * RS pin to digital pin 12
+ * Enable pin to digital pin 11
+ * D4 pin to digital pin 7
+ * D5 pin to digital pin 6
+ * D6 pin to digital pin 5
+ * D7 pin to digital pin 4
+ * R/W pin to ground
  * 10K resistor:
  * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
+ * (???)wiper to LCD VO pin (pin 3)
  
- * knob A to pin 2
- * knob B to pin 3
- * knob button pin 8 // TODO switch to internal pull-up
+Rotary Encoder 
 
- * Esc button (momentary switch) to pin 9
+ * A to digital pin 2
+ * B to ditigal pin 3
+ * button digital pin 8
+
+Esc button
+
+ * momentary switch to digital pin 9
+
+Shift register A
+
+ * SH_CP to analogue pin 1
+ * ST_CP to analogue pin 2
+ * DS to analogue pin 3
+
+Shift register B
+
+ * SH_CP to analogue pin 1
+ * ST_CP to analogue pin 2
+ * DS to Shift register Q7'
  
  */
 
