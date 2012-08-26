@@ -230,12 +230,36 @@ void updateMenu(int page, int patch, int param) {
 
 // Load a parameter label. Return true on success.
 boolean loadParamName(int param, char *pStr) {
+    if (param < 15) {
+        // Per OSC settings.
+        // TODO pass in OSC id A,B,C
+    }
     switch (param) {
-        case 0: setString("Waveform", pStr, PARAMNAME_LEN); return true;
-        case 1: setString("Attack", pStr, PARAMNAME_LEN); return true;
-        case 2: setString("Decay", pStr, PARAMNAME_LEN); return true;
-        case 3: setString("Sustain", pStr, PARAMNAME_LEN); return true;
-        case 4: setString("Release", pStr, PARAMNAME_LEN); return true;
+        case 0:
+        case 5:
+        case 10:
+            setString("Waveform", pStr, PARAMNAME_LEN); return true;
+        case 1:
+        case 6:
+        case 11:
+            setString("Attack", pStr, PARAMNAME_LEN); return true;
+        case 2:
+        case 7:
+        case 12:
+            setString("Decay", pStr, PARAMNAME_LEN); return true;
+        case 3:
+        case 8:
+        case 13:
+            setString("Sustain", pStr, PARAMNAME_LEN); return true;
+        case 4:
+        case 9:
+        case 14:
+            setString("Release", pStr, PARAMNAME_LEN); return true;
+        case 15: setString("Cutoff", pStr, PARAMNAME_LEN); return true;
+        case 16: setString("Reso", pStr, PARAMNAME_LEN); return true;
+        case 17: setString("Bypass", pStr, PARAMNAME_LEN); return true;
+        case 18: setString("Mode", pStr, PARAMNAME_LEN); return true;
+        case 19: setString("Volume", pStr, PARAMNAME_LEN); return true;
     }
     return false;
 }
@@ -243,18 +267,46 @@ boolean loadParamName(int param, char *pStr) {
 // Load a parameter name. See PARAM_X for return values.
 int loadParamOption(int param, int idx, char *pStr) {
     switch (param) {
-        case 0: // Waveform
+        case 0:
+        case 5:
+        case 10:
+            // Waveform
             if      (idx == 0) setString("Triangle", pStr, PARAMNAME_LEN);
             else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
             else if (idx == 2) setString("Pulse", pStr, PARAMNAME_LEN);
-            else if (idx == 4) setString("Noise", pStr, PARAMNAME_LEN);
+            else if (idx == 3) setString("Ring mod", pStr, PARAMNAME_LEN);
+            else if (idx == 4) setString("Sync", pStr, PARAMNAME_LEN);
+            else if (idx == 5) setString("Noise", pStr, PARAMNAME_LEN);
             else return PARAM_UNAVAIL;
             return PARAM_LABEL;
             break;
-        case 1: return PARAM_4BIT; // Attach
-        case 2: return PARAM_4BIT; // Decay
-        case 3: return PARAM_4BIT; // Sustain
-        case 4: return PARAM_4BIT; // Release
+        case 1:
+        case 6:
+        case 11:
+            return PARAM_4BIT; // Attack
+        case 2:
+        case 7:
+        case 12:
+            return PARAM_4BIT; // Decay
+        case 3:
+        case 8:
+        case 13:
+            return PARAM_4BIT; // Sustain
+        case 4:
+        case 9:
+        case 14:
+            return PARAM_4BIT; // Release
+        case 15: return PARAM_UNAVAIL; // Filter Cutoff in HZ TODO.
+        case 16: return PARAM_4BIT; // Filter Reso
+        case 17: return PARAM_UNAVAIL; // Filter bypass, maybe later.
+        case 18:
+            // Filter mode
+            if      (idx == 0) setString("Low Pass", pStr, PARAMNAME_LEN);
+            else if (idx == 0) setString("Hi Pass", pStr, PARAMNAME_LEN);
+            else if (idx == 0) setString("Band Pass", pStr, PARAMNAME_LEN);
+            else if (idx == 0) setString("Notch", pStr, PARAMNAME_LEN);
+            return PARAM_LABEL;
+        case 19: return PARAM_4BIT; // Volume
     }
     return PARAM_UNAVAIL;
 }
