@@ -64,12 +64,11 @@ const int button_esc = 9;
 #define PARAM_LABEL 1
 #define PARAM_4BIT 4
 
-// Should these be defines?
-const int MENU_START = -1;
-const int MENU_HOME = 0;
-const int MENU_PATCH = 1;
-const int MENU_PARAM = 2;
-const int MENU_CONFIRM = 4;
+const int menu_start = 0;
+const int menu_patch = 1;
+const int menu_param = 2;
+const int menu_value = 3;
+const int param_confirm = 127;
 
 const int lcd_width = 16;
 const int lcd_lines = 2;
@@ -81,7 +80,7 @@ const int lcd_lines = 2;
 signed int encoderVal;  // Store the encoder's rotation counts
 
 // Combine these eventually?
-int menuState = MENU_START;
+int menuState = menu_start;
 int menuPatch = 0;
 int menuParam = 0;
 
@@ -112,6 +111,12 @@ void loop() {
     delay(20);
 }
 
+void displayError(char *pErr) {
+    lcd.clear();
+    lcd.print(pErr);
+    delay(2000);
+}
+
 // Responsible for detecting button presses and making the appropriate updates
 // to system state.
 void pollButtons() {
@@ -126,26 +131,21 @@ void pollButtons() {
             buttonState[i] = digitalRead(buttons[i]);
             // Knob push
             if (buttons[i] == enc_button && buttonState[i] == 0) {
-                if (menuState == MENU_HOME) {
+                if (menuState == menu_patch) {
                     menuPatch = encoderVal;
                     menuState++;
                 }
-                else if (menuState == MENU_PATCH) {
+                else if (menuState == menu_param) {
                     menuParam = encoderVal;
                     menuState++;
                 }
-                else if (menuState == MENU_PARAM) {
-                    // TODO need space for this.
-                    menuState++;
-                }
-                else if (menuState == MENU_CONFIRM) {
-                    // TODO save changes.
-                    menuState = MENU_PARAM;
+                else if (menuState == menu_value) {
+                    menuParam = param_confirm;
                 }
             }
             // Esc button
             if (buttons[i] == button_esc && buttonState[i] == 0) {
-                if (menuState != MENU_HOME) menuState--;
+                if (menuState != menu_patch) menuState--;
             }
         }
     }
@@ -153,56 +153,40 @@ void pollButtons() {
 
 // Update the GUI based on system state change.
 void updateMenu(int page, int patchId, int param) {
-    static int curPage;
+    static int curPage = -1;
     static int curEncoderVal;
     static patch curProgram;
-
-    patch *pCurProgram;
-    pCurProgram = &curProgram;
 
     char patchString[PATCHNAME_LEN] = {' '};
     char paramString[PARAMNAME_LEN]= {' '};
     char optionString[PARAMNAME_LEN]= {' '};
 
     if (curPage != page) {
+        lcd.clear();
         curPage = page;
         curEncoderVal = -1;
         encoderVal = 0;
 
-        // TODO can we / should we assume success?
-        if (curProgram.id != patchId) loadPatch(patchId, pCurProgram);
+                // TODO can we / should we assume success?
+                if (curProgram.id != patchId) loadPatch(patchId, &curProgram);
 
         switch (page) {
-            case MENU_START:
+            case menu_start:
                 lcd.print("<< powered up >>");
-                menuState = MENU_HOME;
+                menuState = menu_patch;
                 menuPatch = 0;
                 menuParam = 0;
                 delay(2000);
+                lcd.blink();
+                lcd.cursor();
                 return;
-            case MENU_HOME:
+            case menu_patch:
+            case menu_param:
+            case menu_value:
+
                 if (loadPatchName(curProgram.id, patchString)) {
-                    lcd.clear();
                     lcd.print(patchString);
                 }
-                break;
-            case MENU_PATCH:
-                if (loadPatchName(curProgram.id, patchString)) {
-                    lcd.clear();
-                    lcd.print(patchString);
-                }
-                break;
-            case MENU_PARAM:
-                if (loadPatchName(curProgram.id, patchString) &&
-                    loadParamName(curEncoderVal, paramString)
-                ) {
-                    lcd.clear();
-                    lcd.print(paramString);
-                }
-                break;
-            case MENU_CONFIRM:
-                lcd.clear();
-                lcd.print("Are you sure?");
                 break;
         }
     }
@@ -211,25 +195,38 @@ void updateMenu(int page, int patchId, int param) {
         curEncoderVal = encoderVal;
 
         lcdClearLn(1);
-        if (page == MENU_HOME) {
+
+        if (page == menu_patch) {
             if (loadPatchName(curEncoderVal, patchString))
                 lcd.print(patchString);
         }
-        else if (page == MENU_PATCH) {
-            if (loadParamName(curEncoderVal, paramString))
-                lcd.print(paramString);
-        }
-        else if (page == MENU_PARAM) {
-            int optType = loadParamOption(param, curEncoderVal, optionString);
-            if (optType == PARAM_LABEL) {
-                lcd.print(optionString);
+        else if (page == menu_param || page == menu_value) {
+            int f; // focus
+            int p; // parameter
+            int v; // value
+
+            if (page == menu_param) {
+                f = 0;
+                p = curEncoderVal;
+                v = 0; //todo
             }
-            else if (optType == PARAM_4BIT) {
-                lcd.print(curEncoderVal);
+            else if (page == menu_value) {
+                f = 9;
+                p = param;
+                v = curEncoderVal;
             }
-        }
-        else if (page == MENU_CONFIRM) {
-            lcd.print(curEncoderVal & 1 ? "YES" : "NO");
+
+            if (loadParamName(menuParam, paramString)) lcd.print(paramString);
+            lcd.setCursor(8, 1);
+            switch (loadParamOption(p, v, optionString)) {
+                case PARAM_LABEL:
+                    lcd.print(optionString);
+                    break;
+                case PARAM_4BIT:
+                    lcd.print(curEncoderVal);
+                    break;
+            }
+            lcd.setCursor(f, 1);
         }
     }
 }
@@ -266,6 +263,8 @@ boolean loadParamName(int param, char *pStr) {
         case 17: setString("Bypass", pStr, PARAMNAME_LEN); return true;
         case 18: setString("Mode", pStr, PARAMNAME_LEN); return true;
         case 19: setString("Volume", pStr, PARAMNAME_LEN); return true;
+        // Special cases
+        case 127: setString("Save?", pStr, PARAMNAME_LEN); return true;
     }
     return false;
 }
@@ -313,6 +312,12 @@ int loadParamOption(int param, int idx, char *pStr) {
             else if (idx == 0) setString("Notch", pStr, PARAMNAME_LEN);
             return PARAM_LABEL;
         case 19: return PARAM_4BIT; // Volume
+        // Special cases
+        case 127:
+            // Saving
+            if      (idx == 0) setString("Cancel", pStr, PARAMNAME_LEN);
+            else if (idx == 0) setString("Yes", pStr, PARAMNAME_LEN);
+            return PARAM_LABEL;
     }
     return PARAM_UNAVAIL;
 }
