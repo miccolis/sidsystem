@@ -68,21 +68,13 @@ const int menu_start = 0;
 const int menu_patch = 1;
 const int menu_param = 2;
 const int menu_value = 3;
-const int param_confirm = 127;
+const int param_confirm = -1;
 
 const int lcd_width = 16;
 const int lcd_lines = 2;
 
-/*
- * Global state.
- */
-
+// Global state.
 signed int encoderVal;  // Store the encoder's rotation counts
-
-// Combine these eventually?
-int menuState = menu_start;
-int menuPatch = 0;
-int menuParam = 0;
 
 void setup() {
     lcd.begin(lcd_width, lcd_lines);
@@ -106,133 +98,141 @@ void setup() {
 }
 
 void loop() {
-    pollButtons();
-    updateMenu(menuState, menuPatch, menuParam);
+    static int activePage = menu_start; // "page" see "menu_x" constants.
+    static int menuParam = 0;           // parameter being edited.
+    static int menuValue = 0;           // value of parameter.
+    static patch activePatch;           // Active program
+
+    if (activePage == menu_start) {
+        lcd.print("<< powered up >>");
+        delay(2000);
+        activePage = menu_patch;
+        loadPatch(0, &activePatch);
+        lcd.blink();
+        lcd.cursor();
+    }
+
+    int update = pollButtons();
+    updateState(&activePage, &activePatch, &menuParam, &menuValue, update);
+    updateMenu(&activePage, &activePatch, &menuParam, &menuValue);
     delay(20);
 }
 
-void displayError(char *pErr) {
-    lcd.clear();
-    lcd.print(pErr);
-    delay(2000);
-}
-
-// Responsible for detecting button presses and making the appropriate updates
-// to system state.
-void pollButtons() {
+// Responsible for detecting button presses.
+int pollButtons() {
     static int buttons[2] = {enc_button, button_esc};
     static unsigned long pressed[2];
     static short int buttonState[2];
     unsigned long t = millis();
+    int update = 0;
 
     for (int i = 0; i < 2; i++) {
-        if (buttonState[i] != digitalRead(buttons[i]) &&(t > pressed[i] + 100)) {
+        if (buttonState[i] != digitalRead(buttons[i]) && (t > pressed[i] + 100)) {
             pressed[i] = t;
             buttonState[i] = digitalRead(buttons[i]);
             // Knob push
-            if (buttons[i] == enc_button && buttonState[i] == 0) {
-                if (menuState == menu_patch) {
-                    menuPatch = encoderVal;
-                    menuState++;
-                }
-                else if (menuState == menu_param) {
-                    menuParam = encoderVal;
-                    menuState++;
-                }
-                else if (menuState == menu_value) {
-                    menuParam = param_confirm;
-                }
-            }
+            if (buttons[i] == enc_button && buttonState[i] == 0) update = 1;
             // Esc button
-            if (buttons[i] == button_esc && buttonState[i] == 0) {
-                if (menuState != menu_patch) menuState--;
-            }
+            if (buttons[i] == button_esc && buttonState[i] == 0) update += 2;
+        }
+    }
+    return update;
+}
+
+// Update system state based on input. Responsible for validation.
+void updateState(int *pPage, patch *pPatch, int *pParam, int *pValue, int update) {
+    if (*pPage == menu_patch) {
+        // Input validation is rough now, but we only have 4 programs
+        if (encoderVal < 0) { encoderVal = 0; return; }
+        if (encoderVal > 3) { encoderVal = 3; return; }
+        if (update & 1) {
+            loadPatch(encoderVal, pPatch);
+            *pPage = menu_param;
+            *pParam = 0;
+            *pValue = 0; // todo update value from patch.
+        }
+        else {
+            *pValue = encoderVal;
+        }
+    }
+    else if (*pPage == menu_param) {
+        if (encoderVal < -1) { encoderVal = -1; return; }
+        if (encoderVal > 20) { encoderVal = 20; return; }
+        if (update & 1) {
+            *pPage = menu_value;
+            *pParam = encoderVal;
+            *pValue = 0;
+        }
+        else if (update & 2) {
+            *pPage = menu_patch;
+        }
+        else {
+            *pParam = encoderVal;
+        }
+    }
+    else if (*pPage == menu_value) {
+        // TODO validate value against param def
+        if (update & 2) {
+            *pPage = menu_param;
+        }
+        else {
+            *pValue = encoderVal;
         }
     }
 }
 
 // Update the GUI based on system state change.
-void updateMenu(int page, int patchId, int param) {
+void updateMenu(int *pPage, patch *pPatch, int *pParam, int *pValue) {
+    static char patchString[PATCHNAME_LEN] = {' '};
+    static char paramString[PARAMNAME_LEN]= {' '};
+    static char optionString[PARAMNAME_LEN]= {' '};
     static int curPage = -1;
-    static int curEncoderVal;
-    static patch curProgram;
+    static int curEncoderVal = 0;
 
-    char patchString[PATCHNAME_LEN] = {' '};
-    char paramString[PARAMNAME_LEN]= {' '};
-    char optionString[PARAMNAME_LEN]= {' '};
-
-    if (curPage != page) {
-        lcd.clear();
-        curPage = page;
-        curEncoderVal = -1;
+    if (curPage != *pPage) { 
+        curPage = *pPage;
         encoderVal = 0;
-
-                // TODO can we / should we assume success?
-                if (curProgram.id != patchId) loadPatch(patchId, &curProgram);
-
-        switch (page) {
-            case menu_start:
-                lcd.print("<< powered up >>");
-                menuState = menu_patch;
-                menuPatch = 0;
-                menuParam = 0;
-                delay(2000);
-                lcd.blink();
-                lcd.cursor();
-                return;
-            case menu_patch:
-            case menu_param:
-            case menu_value:
-
-                if (loadPatchName(curProgram.id, patchString)) {
-                    lcd.print(patchString);
-                }
-                break;
-        }
+    }
+    else if(curEncoderVal != encoderVal) {
+        curEncoderVal = encoderVal;
+    }
+    else {
+        return;
     }
 
-    if (curEncoderVal != encoderVal) {
-        curEncoderVal = encoderVal;
+    lcd.clear();
+    lcd.print(pPatch->name);
+    lcd.setCursor(0, 1);
 
-        lcdClearLn(1);
-
-        if (page == menu_patch) {
-            if (loadPatchName(curEncoderVal, patchString))
-                lcd.print(patchString);
+    if (*pPage == menu_patch) {
+        loadPatchName(*pValue, patchString);
+        lcd.print(patchString);
+        lcd.setCursor(0, 1);
+    }
+    else if (*pPage == menu_param || *pPage == menu_value) {
+        loadParamName(*pParam, paramString);
+        lcd.print(paramString);
+        lcd.setCursor(8, 1);
+        switch (loadParamOption(*pParam, *pValue, optionString)) {
+            case PARAM_LABEL:
+                lcd.print(optionString);
+                break;
+            case PARAM_4BIT:
+                lcd.print(*pValue);
+                break;
         }
-        else if (page == menu_param || page == menu_value) {
-            int f; // focus
-            int p; // parameter
-            int v; // value
 
-            if (page == menu_param) {
-                f = 0;
-                p = curEncoderVal;
-                v = 0; //todo
-            }
-            else if (page == menu_value) {
-                f = 9;
-                p = param;
-                v = curEncoderVal;
-            }
-
-            if (loadParamName(menuParam, paramString)) lcd.print(paramString);
-            lcd.setCursor(8, 1);
-            switch (loadParamOption(p, v, optionString)) {
-                case PARAM_LABEL:
-                    lcd.print(optionString);
-                    break;
-                case PARAM_4BIT:
-                    lcd.print(curEncoderVal);
-                    break;
-            }
-            lcd.setCursor(f, 1);
-        }
+        if      (*pPage == menu_param) lcd.setCursor(0, 1);
+        else if (*pPage == menu_value) lcd.setCursor(9, 1);
     }
 }
 
 // Load a parameter label. Return true on success.
 boolean loadParamName(int param, char *pStr) {
+    if (param == param_confirm ) {
+        setString("Save?", pStr, PARAMNAME_LEN);
+        return true;
+    }
     if (param < 15) {
         // Per OSC settings.
         // TODO pass in OSC id A,B,C
@@ -263,14 +263,18 @@ boolean loadParamName(int param, char *pStr) {
         case 17: setString("Bypass", pStr, PARAMNAME_LEN); return true;
         case 18: setString("Mode", pStr, PARAMNAME_LEN); return true;
         case 19: setString("Volume", pStr, PARAMNAME_LEN); return true;
-        // Special cases
-        case 127: setString("Save?", pStr, PARAMNAME_LEN); return true;
     }
     return false;
 }
 
 // Load a parameter name. See PARAM_X for return values.
 int loadParamOption(int param, int idx, char *pStr) {
+    if (param == param_confirm) {
+        // Saving
+        if      (idx == 0) setString("Cancel", pStr, PARAMNAME_LEN);
+        else if (idx == 0) setString("Yes", pStr, PARAMNAME_LEN);
+        return PARAM_LABEL;
+    }
     switch (param) {
         case 0:
         case 5:
@@ -312,12 +316,6 @@ int loadParamOption(int param, int idx, char *pStr) {
             else if (idx == 0) setString("Notch", pStr, PARAMNAME_LEN);
             return PARAM_LABEL;
         case 19: return PARAM_4BIT; // Volume
-        // Special cases
-        case 127:
-            // Saving
-            if      (idx == 0) setString("Cancel", pStr, PARAMNAME_LEN);
-            else if (idx == 0) setString("Yes", pStr, PARAMNAME_LEN);
-            return PARAM_LABEL;
     }
     return PARAM_UNAVAIL;
 }
@@ -469,3 +467,10 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
     }
     return false;
 }
+
+void displayError(char *pErr) {
+    lcd.clear();
+    lcd.print(pErr);
+    delay(2000);
+}
+

@@ -36,7 +36,3 @@ struct patch {
     int id;
     char name[8];
 };
-
-
-
-
