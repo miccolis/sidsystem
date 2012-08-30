@@ -174,7 +174,7 @@ boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int u
     }
     else if (*pPage == menu_value) {
         // TODO validate value against param def
-        if (update & 2) {
+        if (update) {
             *pPage = menu_param;
         }
         else {
