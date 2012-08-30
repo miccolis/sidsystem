@@ -353,10 +353,7 @@ boolean loadPatchName(int id, char *pStr) {
 }
 
 boolean loadPatch(int id, patch *pProg) {
-    // Currently we have four hard coded patches
-    if (id < 0) id = 0;
-    if (id > 3) id = 3;
-
+    // TODO user patches.
     return loadFactoryDefaultPatch(id, pProg);
 }
 
