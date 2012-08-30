@@ -184,9 +184,6 @@ void updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int upda
 
 // Update the GUI based on system state change.
 void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
-    static char patchString[PATCHNAME_LEN] = {' '};
-    static char paramString[PARAMNAME_LEN]= {' '};
-    static char optionString[PARAMNAME_LEN]= {' '};
     static int curPage = -1;
     static int curEncoderVal = 0;
 
@@ -206,6 +203,7 @@ void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
     lcd.setCursor(0, 1);
 
     if (*pPage == menu_patch) {
+        char patchString[PATCHNAME_LEN] = {' '};
         loadPatchName(*pValue, patchString);
         lcd.print(patchString);
         lcd.setCursor(0, 1);
@@ -215,8 +213,11 @@ void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
         lcd.setCursor(9, 1);
         switch (pParam->type) {
             case PARAM_LABEL:
-                loadParamOption(pParam, *pValue, optionString);
-                lcd.print(optionString);
+                {
+                    char optionString[PARAMNAME_LEN]= {' '};
+                    loadParamOption(pParam, *pValue, optionString);
+                    lcd.print(optionString);
+                }
                 break;
             case PARAM_4BIT:
                 lcd.print(*pValue);
