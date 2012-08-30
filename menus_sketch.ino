@@ -42,6 +42,7 @@ Shift register B
 
 #include <LiquidCrystal.h>
 #include "patch.h"
+#include "param.h"
 
 LiquidCrystal lcd(12, 11, 7, 6, 5, 4);
 const int enc_a = 2;
@@ -228,43 +229,11 @@ void updateMenu(int *pPage, patch *pPatch, int *pParam, int *pValue) {
 }
 
 // Load a parameter label. Return true on success.
-boolean loadParamName(int param, char *pStr) {
-    if (param == param_confirm ) {
-        setString("Save?", pStr, PARAMNAME_LEN);
-        return true;
-    }
-    if (param < 15) {
-        // Per OSC settings.
-        // TODO pass in OSC id A,B,C
-    }
-    switch (param) {
-        case 0:
-        case 5:
-        case 10:
-            setString("Waveform", pStr, PARAMNAME_LEN); return true;
-        case 1:
-        case 6:
-        case 11:
-            setString("Attack", pStr, PARAMNAME_LEN); return true;
-        case 2:
-        case 7:
-        case 12:
-            setString("Decay", pStr, PARAMNAME_LEN); return true;
-        case 3:
-        case 8:
-        case 13:
-            setString("Sustain", pStr, PARAMNAME_LEN); return true;
-        case 4:
-        case 9:
-        case 14:
-            setString("Release", pStr, PARAMNAME_LEN); return true;
-        case 15: setString("Cutoff", pStr, PARAMNAME_LEN); return true;
-        case 16: setString("Reso", pStr, PARAMNAME_LEN); return true;
-        case 17: setString("Bypass", pStr, PARAMNAME_LEN); return true;
-        case 18: setString("Mode", pStr, PARAMNAME_LEN); return true;
-        case 19: setString("Volume", pStr, PARAMNAME_LEN); return true;
-    }
-    return false;
+boolean loadParamName(int id, char *pStr) {
+    param p;
+    loadParam(id, &p);
+    setString(p.name, pStr, PARAMNAME_LEN);
+    return true;
 }
 
 // Load a parameter name. See PARAM_X for return values.
@@ -318,6 +287,93 @@ int loadParamOption(int param, int idx, char *pStr) {
         case 19: return PARAM_4BIT; // Volume
     }
     return PARAM_UNAVAIL;
+}
+
+boolean copyParam(param *pSrc, param *pDest) {
+    pDest->type = pSrc->type;
+    pDest->id = pSrc->id;
+    setString(pSrc->name, pDest->name, PARAMNAME_LEN);
+    return true;
+}
+
+boolean loadParam(int id, param *pParam) {
+    if (id == param_confirm) {
+        param def = {PARAM_LABEL, id, "Save?"};
+        return copyParam(&def, pParam);
+    }
+
+    char osc = 'A';
+    if      (id > 4 && id < 10)  osc = 'B';
+    else if (id > 9 && id < 15) osc = 'C';
+
+    switch (id) {
+        case 0:
+        case 5:
+        case 10:
+            {
+                param def = {PARAM_4BIT, id, "  Wave"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 1:
+        case 6:
+        case 11:
+            {
+                param def = {PARAM_4BIT, id, "  Att"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 2:
+        case 7:
+        case 12:
+            {
+                param def = {PARAM_4BIT, id, "  Dec"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 3:
+        case 8:
+        case 13:
+            {
+                param def = {PARAM_4BIT, id, "  Sus"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 4:
+        case 9:
+        case 14:
+            {
+                param def = {PARAM_4BIT, id, "  Rel"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 15:
+            {
+                param def = {PARAM_4BIT, id, "Cutoff"};
+                return copyParam(&def, pParam);
+            }
+        case 16:
+            {
+                param def = {PARAM_4BIT, id, "Reso"};
+                return copyParam(&def, pParam);
+            }
+        case 17:
+            {
+                param def = {PARAM_4BIT, id, "Bypass"};
+                return copyParam(&def, pParam);
+            }
+        case 18:
+            {
+                param def = {PARAM_4BIT, id, "Mode"};
+                return copyParam(&def, pParam);
+            }
+        case 19:
+            {
+                param def = {PARAM_4BIT, id, "Volume"};
+                return copyParam(&def, pParam);
+            }
+    }
+    return false;
 }
 
 // Load a patch label. Return true on success.
