@@ -149,8 +149,8 @@ void updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int upda
         if (update & 1) {
             loadPatch(encoderVal, pPatch);
             loadParam(0, pParam);
+            *pValue = loadPatchValue(pParam->id, pPatch);
             *pPage = menu_param;
-            *pValue = 0; // todo update value from patch.
         }
         else {
             *pValue = encoderVal;
@@ -159,17 +159,12 @@ void updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int upda
     else if (*pPage == menu_param) {
         if (encoderVal < -1) { encoderVal = -1; return; }
         if (encoderVal > 20) { encoderVal = 20; return; }
-        if (update & 1) {
-            loadParam(encoderVal, pParam);
-            *pPage = menu_value;
-            *pValue = 0;
-        }
-        else if (update & 2) {
-            *pPage = menu_patch;
-        }
-        else {
-            loadParam(encoderVal, pParam);
-        }
+
+        loadParam(encoderVal, pParam);
+        *pValue = loadPatchValue(pParam->id, pPatch);
+
+        if (update & 1) *pPage = menu_value;
+        if (update & 2) *pPage = menu_patch;
     }
     else if (*pPage == menu_value) {
         // TODO validate value against param def
@@ -369,6 +364,35 @@ boolean loadPatch(int id, patch *pProg) {
     if (id > 3) id = 3;
 
     return loadFactoryDefaultPatch(id, pProg);
+}
+
+int loadPatchValue(int param, patch *p) {
+    switch (param) {
+        case 0: return p->waveOscA;
+        case 1: return p->attackOscA;
+        case 2: return p->decayOscA;
+        case 3: return p->sustainOscA;
+        case 4: return p->releaseOscA;
+
+        case 5: return p->waveOscB;
+        case 6: return p->attackOscB;
+        case 7: return p->decayOscB;
+        case 8: return p->sustainOscB;
+        case 9: return p->releaseOscB;
+
+        case 10: return p->waveOscC;
+        case 11: return p->attackOscC;
+        case 12: return p->decayOscC;
+        case 13: return p->sustainOscC;
+        case 14: return p->releaseOscC;
+
+        case 15: return p->cutoff;
+        case 16: return p->resonance;
+        case 17: return p->bypass;
+        case 18: return p->mode;
+
+        case 19: return p->volume;
+    }
 }
 
 boolean loadFactoryDefaultPatch(int id, patch *pProg) {
