@@ -100,9 +100,9 @@ void setup() {
 
 void loop() {
     static int activePage = menu_start; // "page" see "menu_x" constants.
-    static int menuParam = 0;           // parameter being edited.
-    static int menuValue = 0;           // value of parameter.
-    static patch activePatch;           // Active program
+    static patch activePatch;           // Active program (ie being played & edited)
+    static param activeParam;           // Active parameter (ie being edited)
+    static int menuValue = 0;           // Value of parameter.
 
     if (activePage == menu_start) {
         lcd.print("<< powered up >>");
@@ -114,8 +114,8 @@ void loop() {
     }
 
     int update = pollButtons();
-    updateState(&activePage, &activePatch, &menuParam, &menuValue, update);
-    updateMenu(&activePage, &activePatch, &menuParam, &menuValue);
+    updateState(&activePage, &activePatch, &activeParam, &menuValue, update);
+    updateMenu(&activePage, &activePatch, &activeParam, &menuValue);
     delay(20);
 }
 
@@ -141,15 +141,15 @@ int pollButtons() {
 }
 
 // Update system state based on input. Responsible for validation.
-void updateState(int *pPage, patch *pPatch, int *pParam, int *pValue, int update) {
+void updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int update) {
     if (*pPage == menu_patch) {
         // Input validation is rough now, but we only have 4 programs
         if (encoderVal < 0) { encoderVal = 0; return; }
         if (encoderVal > 3) { encoderVal = 3; return; }
         if (update & 1) {
             loadPatch(encoderVal, pPatch);
+            loadParam(0, pParam);
             *pPage = menu_param;
-            *pParam = 0;
             *pValue = 0; // todo update value from patch.
         }
         else {
@@ -160,15 +160,15 @@ void updateState(int *pPage, patch *pPatch, int *pParam, int *pValue, int update
         if (encoderVal < -1) { encoderVal = -1; return; }
         if (encoderVal > 20) { encoderVal = 20; return; }
         if (update & 1) {
+            loadParam(encoderVal, pParam);
             *pPage = menu_value;
-            *pParam = encoderVal;
             *pValue = 0;
         }
         else if (update & 2) {
             *pPage = menu_patch;
         }
         else {
-            *pParam = encoderVal;
+            loadParam(encoderVal, pParam);
         }
     }
     else if (*pPage == menu_value) {
@@ -183,7 +183,7 @@ void updateState(int *pPage, patch *pPatch, int *pParam, int *pValue, int update
 }
 
 // Update the GUI based on system state change.
-void updateMenu(int *pPage, patch *pPatch, int *pParam, int *pValue) {
+void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
     static char patchString[PATCHNAME_LEN] = {' '};
     static char paramString[PARAMNAME_LEN]= {' '};
     static char optionString[PARAMNAME_LEN]= {' '};
@@ -211,15 +211,19 @@ void updateMenu(int *pPage, patch *pPatch, int *pParam, int *pValue) {
         lcd.setCursor(0, 1);
     }
     else if (*pPage == menu_param || *pPage == menu_value) {
-        loadParamName(*pParam, paramString);
-        lcd.print(paramString);
-        lcd.setCursor(8, 1);
-        switch (loadParamOption(*pParam, *pValue, optionString)) {
+        lcd.print(pParam->name);
+        lcd.setCursor(9, 1);
+        switch (pParam->type) {
             case PARAM_LABEL:
+                loadParamOption(pParam, *pValue, optionString);
                 lcd.print(optionString);
                 break;
             case PARAM_4BIT:
                 lcd.print(*pValue);
+                break;
+            case PARAM_UNAVAIL:
+            default:
+                // noop
                 break;
         }
 
@@ -228,23 +232,15 @@ void updateMenu(int *pPage, patch *pPatch, int *pParam, int *pValue) {
     }
 }
 
-// Load a parameter label. Return true on success.
-boolean loadParamName(int id, char *pStr) {
-    param p;
-    loadParam(id, &p);
-    setString(p.name, pStr, PARAMNAME_LEN);
-    return true;
-}
-
-// Load a parameter name. See PARAM_X for return values.
-int loadParamOption(int param, int idx, char *pStr) {
-    if (param == param_confirm) {
-        // Saving
+// Parameter methods
+boolean loadParamOption(param *pParam, int idx, char *pStr) {
+    if (pParam->id == param_confirm) {
         if      (idx == 0) setString("Cancel", pStr, PARAMNAME_LEN);
-        else if (idx == 0) setString("Yes", pStr, PARAMNAME_LEN);
-        return PARAM_LABEL;
+        else if (idx == 1) setString("Yes", pStr, PARAMNAME_LEN);
+        else return false;
+        return true;
     }
-    switch (param) {
+    switch (pParam->id) {
         case 0:
         case 5:
         case 10:
@@ -255,45 +251,18 @@ int loadParamOption(int param, int idx, char *pStr) {
             else if (idx == 3) setString("Ring mod", pStr, PARAMNAME_LEN);
             else if (idx == 4) setString("Sync", pStr, PARAMNAME_LEN);
             else if (idx == 5) setString("Noise", pStr, PARAMNAME_LEN);
-            else return PARAM_UNAVAIL;
-            return PARAM_LABEL;
-            break;
-        case 1:
-        case 6:
-        case 11:
-            return PARAM_4BIT; // Attack
-        case 2:
-        case 7:
-        case 12:
-            return PARAM_4BIT; // Decay
-        case 3:
-        case 8:
-        case 13:
-            return PARAM_4BIT; // Sustain
-        case 4:
-        case 9:
-        case 14:
-            return PARAM_4BIT; // Release
-        case 15: return PARAM_UNAVAIL; // Filter Cutoff in HZ TODO.
-        case 16: return PARAM_4BIT; // Filter Reso
-        case 17: return PARAM_UNAVAIL; // Filter bypass, maybe later.
+            else return false;
+            return true;
         case 18:
             // Filter mode
             if      (idx == 0) setString("Low Pass", pStr, PARAMNAME_LEN);
-            else if (idx == 0) setString("Hi Pass", pStr, PARAMNAME_LEN);
-            else if (idx == 0) setString("Band Pass", pStr, PARAMNAME_LEN);
-            else if (idx == 0) setString("Notch", pStr, PARAMNAME_LEN);
-            return PARAM_LABEL;
-        case 19: return PARAM_4BIT; // Volume
+            else if (idx == 1) setString("Hi Pass", pStr, PARAMNAME_LEN);
+            else if (idx == 2) setString("Band Pass", pStr, PARAMNAME_LEN);
+            else if (idx == 3) setString("Notch", pStr, PARAMNAME_LEN);
+            else return false;
+            return true;
     }
-    return PARAM_UNAVAIL;
-}
-
-boolean copyParam(param *pSrc, param *pDest) {
-    pDest->type = pSrc->type;
-    pDest->id = pSrc->id;
-    setString(pSrc->name, pDest->name, PARAMNAME_LEN);
-    return true;
+    return false;
 }
 
 boolean loadParam(int id, param *pParam) {
@@ -311,7 +280,7 @@ boolean loadParam(int id, param *pParam) {
         case 5:
         case 10:
             {
-                param def = {PARAM_4BIT, id, "  Wave"};
+                param def = {PARAM_LABEL, id, "  Wave"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
@@ -349,7 +318,8 @@ boolean loadParam(int id, param *pParam) {
             }
         case 15:
             {
-                param def = {PARAM_4BIT, id, "Cutoff"};
+                // Filter Cutoff in HZ TODO.
+                param def = {PARAM_UNAVAIL, id, "Cutoff"};
                 return copyParam(&def, pParam);
             }
         case 16:
@@ -359,12 +329,13 @@ boolean loadParam(int id, param *pParam) {
             }
         case 17:
             {
-                param def = {PARAM_4BIT, id, "Bypass"};
+                 // Filter bypass, maybe later.
+                param def = {PARAM_UNAVAIL, id, "Bypass"};
                 return copyParam(&def, pParam);
             }
         case 18:
             {
-                param def = {PARAM_4BIT, id, "Mode"};
+                param def = {PARAM_LABEL, id, "Mode"};
                 return copyParam(&def, pParam);
             }
         case 19:
@@ -376,7 +347,14 @@ boolean loadParam(int id, param *pParam) {
     return false;
 }
 
-// Load a patch label. Return true on success.
+boolean copyParam(param *pSrc, param *pDest) {
+    pDest->type = pSrc->type;
+    pDest->id = pSrc->id;
+    setString(pSrc->name, pDest->name, PARAMNAME_LEN);
+    return true;
+}
+
+// Patch methods
 boolean loadPatchName(int id, char *pStr) {
     patch p;
     loadPatch(id, &p);
@@ -390,89 +368,6 @@ boolean loadPatch(int id, patch *pProg) {
     if (id > 3) id = 3;
 
     return loadFactoryDefaultPatch(id, pProg);
-}
-
-void setString(const char src[], char *dest, int len) {
-    int i;
-    for (i = 0; i < len && src[i] != '\0'; i++)
-        dest[i] = src[i];
-    for ( ; i < len; i++)
-        dest[i] = '\0';
-}
-
-void lcdClearLn(int l) {
-    for (int i = 0; i < lcd_width; i++) {
-        lcd.setCursor(i, l);
-        lcd.write(' ');
-    }
-    lcd.setCursor(0, l);
-}
-
-// interrupt handler for the rotary encoder.
-void readEncoder() {
-  noInterrupts();
-  delayMicroseconds(5000);  // 'debounce'
-  
-  // enc_states[] is a fancy way to keep track of which direction
-  // the encoder is turning. 2-bits of oldEncoderState are paired
-  // with 2-bits of newEncoderState to create 16 possible values.
-  // Each of the 16 values will produce either a CW turn (1),
-  // CCW turn (-1) or no movement (0).
-  int8_t enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-  static uint8_t oldEncoderState = 0;
-  static uint8_t newEncoderState = 0;
-
-  // First, find the newEncoderState. This'll be a 2-bit value
-  // the msb is the state of the B pin. The lsb is the state
-  // of the A pin on the encoder.
-  newEncoderState = (digitalRead(enc_b)<<1) | (digitalRead(enc_a));
-  
-  // Now we pair oldEncoderState with new encoder state
-  // First we need to shift oldEncoder state left two bits.
-  // This'll put the last state in bits 2 and 3.
-  oldEncoderState <<= 2;
-  // Mask out everything in oldEncoderState except for the previous state
-  oldEncoderState &= 0xC0;
-  // Now add the newEncoderState. oldEncoderState will now be of
-  // the form: 0b0000(old B)(old A)(new B)(new A)
-  oldEncoderState |= newEncoderState; // add filteredport value
-
-  // Now we can update encoderVal with the updated position
-  // movement. We'll either add 1, -1 or 0 here.
-  encoderVal += enc_states[oldEncoderState];
-  
-  interrupts();
-}
-
-boolean copyPatch(patch *pSrc, patch *pDest) {
-    pDest->waveOscA = pSrc->waveOscA;
-    pDest->attackOscA = pSrc->attackOscA;
-    pDest->decayOscA = pSrc->decayOscA;
-    pDest->sustainOscA = pSrc->sustainOscA;
-    pDest->releaseOscA = pSrc->releaseOscA;
-
-    pDest->waveOscB = pSrc->waveOscB;
-    pDest->attackOscB = pSrc->attackOscB;
-    pDest->decayOscB = pSrc->decayOscB;
-    pDest->sustainOscB = pSrc->sustainOscB;
-    pDest->releaseOscB = pSrc->releaseOscB;
-
-    pDest->waveOscC = pSrc->waveOscC;
-    pDest->attackOscC = pSrc->attackOscC;
-    pDest->decayOscC = pSrc->decayOscC;
-    pDest->sustainOscC = pSrc->sustainOscC;
-    pDest->releaseOscC = pSrc->releaseOscC;
- 
-    pDest->cutoff = pSrc->cutoff;
-    pDest->resonance = pSrc->resonance;
-    pDest->bypass = pSrc->bypass;
-    pDest->mode = pSrc->mode;
-
-    pDest->volume = pSrc->volume;
-
-    pDest->id = pSrc->id;
-    setString(pSrc->name, pDest->name, PATCHNAME_LEN);
-    return true;
 }
 
 boolean loadFactoryDefaultPatch(int id, patch *pProg) {
@@ -524,9 +419,83 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
     return false;
 }
 
+boolean copyPatch(patch *pSrc, patch *pDest) {
+    pDest->waveOscA = pSrc->waveOscA;
+    pDest->attackOscA = pSrc->attackOscA;
+    pDest->decayOscA = pSrc->decayOscA;
+    pDest->sustainOscA = pSrc->sustainOscA;
+    pDest->releaseOscA = pSrc->releaseOscA;
+
+    pDest->waveOscB = pSrc->waveOscB;
+    pDest->attackOscB = pSrc->attackOscB;
+    pDest->decayOscB = pSrc->decayOscB;
+    pDest->sustainOscB = pSrc->sustainOscB;
+    pDest->releaseOscB = pSrc->releaseOscB;
+
+    pDest->waveOscC = pSrc->waveOscC;
+    pDest->attackOscC = pSrc->attackOscC;
+    pDest->decayOscC = pSrc->decayOscC;
+    pDest->sustainOscC = pSrc->sustainOscC;
+    pDest->releaseOscC = pSrc->releaseOscC;
+ 
+    pDest->cutoff = pSrc->cutoff;
+    pDest->resonance = pSrc->resonance;
+    pDest->bypass = pSrc->bypass;
+    pDest->mode = pSrc->mode;
+
+    pDest->volume = pSrc->volume;
+
+    pDest->id = pSrc->id;
+    setString(pSrc->name, pDest->name, PATCHNAME_LEN);
+    return true;
+}
+
+// interrupt handler for the rotary encoder.
+void readEncoder() {
+  noInterrupts();
+  delayMicroseconds(5000);  // 'debounce'
+  
+  // enc_states[] is a fancy way to keep track of which direction
+  // the encoder is turning. 2-bits of oldEncoderState are paired
+  // with 2-bits of newEncoderState to create 16 possible values.
+  // Each of the 16 values will produce either a CW turn (1),
+  // CCW turn (-1) or no movement (0).
+  int8_t enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
+  static uint8_t oldEncoderState = 0;
+  static uint8_t newEncoderState = 0;
+
+  // First, find the newEncoderState. This'll be a 2-bit value
+  // the msb is the state of the B pin. The lsb is the state
+  // of the A pin on the encoder.
+  newEncoderState = (digitalRead(enc_b)<<1) | (digitalRead(enc_a));
+  
+  // Now we pair oldEncoderState with new encoder state
+  // First we need to shift oldEncoder state left two bits.
+  // This'll put the last state in bits 2 and 3.
+  oldEncoderState <<= 2;
+  // Mask out everything in oldEncoderState except for the previous state
+  oldEncoderState &= 0xC0;
+  // Now add the newEncoderState. oldEncoderState will now be of
+  // the form: 0b0000(old B)(old A)(new B)(new A)
+  oldEncoderState |= newEncoderState; // add filteredport value
+
+  // Now we can update encoderVal with the updated position
+  // movement. We'll either add 1, -1 or 0 here.
+  encoderVal += enc_states[oldEncoderState];
+  
+  interrupts();
+}
+
 void displayError(char *pErr) {
     lcd.clear();
     lcd.print(pErr);
     delay(2000);
 }
 
+void setString(const char src[], char *dest, int len) {
+    int i;
+    for (i = 0; i < len && src[i] != '\0'; i++)
+        dest[i] = src[i];
+    for ( ; i < len; i++)
+        dest[i] = '\0';
+}
