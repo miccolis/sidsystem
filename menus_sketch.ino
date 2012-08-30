@@ -114,8 +114,9 @@ void loop() {
     }
 
     int update = pollButtons();
-    updateState(&activePage, &activePatch, &activeParam, &menuValue, update);
-    updateMenu(&activePage, &activePatch, &activeParam, &menuValue);
+    if (updateState(&activePage, &activePatch, &activeParam, &menuValue, update))
+        updateMenu(&activePage, &activePatch, &activeParam, &menuValue);
+
     delay(20);
 }
 
@@ -141,11 +142,16 @@ int pollButtons() {
 }
 
 // Update system state based on input. Responsible for validation.
-void updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int update) {
+boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int update) {
+    static int curEncoderVal = -1;
+
+    if (curEncoderVal != encoderVal) curEncoderVal = encoderVal;
+    else if (update == 0) return false;
+
     if (*pPage == menu_patch) {
         // Input validation is rough now, but we only have 4 programs
-        if (encoderVal < 0) { encoderVal = 0; return; }
-        if (encoderVal > 3) { encoderVal = 3; return; }
+        if (encoderVal < 0) { encoderVal = 0; return true; }
+        if (encoderVal > 3) { encoderVal = 3; return true; }
         if (update & 1) {
             loadPatch(encoderVal, pPatch);
             loadParam(0, pParam);
@@ -157,8 +163,8 @@ void updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int upda
         }
     }
     else if (*pPage == menu_param) {
-        if (encoderVal < -1) { encoderVal = -1; return; }
-        if (encoderVal > 20) { encoderVal = 20; return; }
+        if (encoderVal < -1) { encoderVal = -1; return true; }
+        if (encoderVal > 20) { encoderVal = 20; return true; }
 
         loadParam(encoderVal, pParam);
         *pValue = loadPatchValue(pParam->id, pPatch);
@@ -175,23 +181,11 @@ void updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int upda
             *pValue = encoderVal;
         }
     }
+    return true;
 }
 
 // Update the GUI based on system state change.
 void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
-    static int curPage = -1;
-    static int curEncoderVal = 0;
-
-    if (curPage != *pPage) { 
-        curPage = *pPage;
-        encoderVal = 0;
-    }
-    else if(curEncoderVal != encoderVal) {
-        curEncoderVal = encoderVal;
-    }
-    else {
-        return;
-    }
 
     lcd.clear();
     lcd.print(pPatch->name);
