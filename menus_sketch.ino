@@ -169,13 +169,20 @@ boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int u
         loadParam(encoderVal, pParam);
         *pValue = loadPatchValue(pParam->id, pPatch);
 
-        if (update & 1) *pPage = menu_value;
-        if (update & 2) *pPage = menu_patch;
+        if (update & 1) {
+            *pPage = menu_value;
+            encoderVal = *pValue;
+        }
+        else if (update & 2) {
+            *pPage = menu_patch;
+            encoderVal = pPatch->id;
+        }
     }
     else if (*pPage == menu_value) {
         // TODO validate value against param def
         if (update) {
             *pPage = menu_param;
+            encoderVal = pParam->id;
         }
         else {
             *pValue = encoderVal;
