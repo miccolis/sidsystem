@@ -1,7 +1,8 @@
-/* Menus! */
+/* 
 
-/*
- The circuit:
+Computer Controlled, a SID Synthesizer.
+
+The circuit:
 
 LCD
 
@@ -28,9 +29,9 @@ Esc button
 
 Shift register A
 
+ * DS to analogue pin 0
  * SH_CP to analogue pin 1
  * ST_CP to analogue pin 2
- * DS to analogue pin 3
 
 Shift register B
 
@@ -38,7 +39,7 @@ Shift register B
  * ST_CP to analogue pin 2
  * DS to Shift register Q7'
  
- */
+*/
 
 #include <LiquidCrystal.h>
 #include "patch.h"
@@ -49,6 +50,10 @@ const int enc_a = 2;
 const int enc_b = 3;
 const int enc_button = 8;
 const int button_esc = 9;
+
+const int sr_ds = A0;
+const int sr_sh_cp= A1;
+const int sr_st_cp= A2;
 
 // These three defines (ROTATION_SPEED, ENCODER_POSITION_MAX, and
 // ENCODER_POSITION_MIN) control how fast the circular bar graph
@@ -97,6 +102,10 @@ void setup() {
     attachInterrupt(0, readEncoder, CHANGE);
     attachInterrupt(1, readEncoder, CHANGE);
     interrupts();
+
+    pinMode(sr_ds, OUTPUT);
+    pinMode(sr_sh_cp, OUTPUT);
+    pinMode(sr_st_cp, OUTPUT);
 }
 
 void loop() {
@@ -577,7 +586,19 @@ void updateSynth(patch *p) {
     static byte registers[25];
     patchToRegisters(p, registers);
     for (int i = 0; i < 25; i++) {
-        Serial.println(registers[i]);
+        if (i == 1 || i == 2 || i == 7 || i == 8  || i == 14 || i == 15) {
+            // do nothing.
+        }
+        else {
+            // push address (i)
+            digitalWrite(sr_st_cp, LOW);
+            shiftOut(sr_ds , sr_sh_cp, MSBFIRST, registers[i]);  
+            digitalWrite(sr_st_cp, HIGH);
+
+            // push register contents (registers[i])
+            Serial.println(registers[i]);
+            delay(200);
+        }
     }
 }
 
