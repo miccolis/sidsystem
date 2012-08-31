@@ -64,6 +64,7 @@ const int button_esc = 9;
 #define PARAM_UNAVAIL 0
 #define PARAM_LABEL 1
 #define PARAM_4BIT 4
+#define PARAM_11BIT 8
 
 const int menu_start = 0;
 const int menu_patch = 1;
@@ -219,6 +220,7 @@ void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
                 }
                 break;
             case PARAM_4BIT:
+            case PARAM_11BIT:
                 lcd.print(*pValue);
                 break;
             case PARAM_UNAVAIL:
@@ -318,8 +320,8 @@ boolean loadParam(int id, param *pParam) {
             }
         case 15:
             {
-                // Filter Cutoff in HZ TODO.
-                param def = {PARAM_UNAVAIL, id, "Cutoff"}; // Is actually 11bits.
+                // Filter Cutoff in HZ
+                param def = {PARAM_11BIT, id, "Cutoff"};
                 return copyParam(&def, pParam);
             }
         case 16:
