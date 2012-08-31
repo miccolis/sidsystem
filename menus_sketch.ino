@@ -179,6 +179,7 @@ boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int u
         }
         else {
             *pValue = encoderVal;
+            setPatchValue(pParam->id, pPatch, *pValue);
         }
     }
     return true;
@@ -358,31 +359,41 @@ boolean loadPatch(int id, patch *pProg) {
 }
 
 int loadPatchValue(int param, patch *p) {
+    int *v = loadPatchValuePtr(param, p);
+    return *v;
+}
+
+void setPatchValue(int param, patch *p, int val) {
+    int *v = loadPatchValuePtr(param, p);
+    *v = val;
+}
+
+int *loadPatchValuePtr(int param, patch *p) {
     switch (param) {
-        case 0: return p->waveOscA;
-        case 1: return p->attackOscA;
-        case 2: return p->decayOscA;
-        case 3: return p->sustainOscA;
-        case 4: return p->releaseOscA;
+        case 0: return &(p->waveOscA);
+        case 1: return &(p->attackOscA);
+        case 2: return &(p->decayOscA);
+        case 3: return &(p->sustainOscA);
+        case 4: return &(p->releaseOscA);
 
-        case 5: return p->waveOscB;
-        case 6: return p->attackOscB;
-        case 7: return p->decayOscB;
-        case 8: return p->sustainOscB;
-        case 9: return p->releaseOscB;
+        case 5: return &(p->waveOscB);
+        case 6: return &(p->attackOscB);
+        case 7: return &(p->decayOscB);
+        case 8: return &(p->sustainOscB);
+        case 9: return &(p->releaseOscB);
 
-        case 10: return p->waveOscC;
-        case 11: return p->attackOscC;
-        case 12: return p->decayOscC;
-        case 13: return p->sustainOscC;
-        case 14: return p->releaseOscC;
+        case 10: return &(p->waveOscC);
+        case 11: return &(p->attackOscC);
+        case 12: return &(p->decayOscC);
+        case 13: return &(p->sustainOscC);
+        case 14: return &(p->releaseOscC);
 
-        case 15: return p->cutoff;
-        case 16: return p->resonance;
-        case 17: return p->bypass;
-        case 18: return p->mode;
+        case 15: return &(p->cutoff);
+        case 16: return &(p->resonance);
+        case 17: return &(p->bypass);
+        case 18: return &(p->mode);
 
-        case 19: return p->volume;
+        case 19: return &(p->volume);
     }
 }
 
