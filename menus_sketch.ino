@@ -79,7 +79,7 @@ signed int encoderVal;  // Store the encoder's rotation counts
 
 void setup() {
     lcd.begin(lcd_width, lcd_lines);
-    //Serial.begin(9600); // For debugging.
+    Serial.begin(9600); // For debugging.
     
     pinMode(enc_button, INPUT);
     digitalWrite(enc_button, HIGH);
@@ -109,6 +109,7 @@ void loop() {
         delay(2000);
         activePage = menu_patch;
         loadPatch(0, &activePatch);
+        updateSynth(&activePatch);
         lcd.blink();
         lcd.cursor();
     }
@@ -154,6 +155,7 @@ boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int u
         if (encoderVal > 3) { encoderVal = 3; return true; }
         if (update & 1) {
             loadPatch(encoderVal, pPatch);
+            updateSynth(pPatch);
             loadParam(0, pParam);
             *pValue = loadPatchValue(pParam->id, pPatch);
             *pPage = menu_param;
@@ -317,7 +319,7 @@ boolean loadParam(int id, param *pParam) {
         case 15:
             {
                 // Filter Cutoff in HZ TODO.
-                param def = {PARAM_UNAVAIL, id, "Cutoff"};
+                param def = {PARAM_UNAVAIL, id, "Cutoff"}; // Is actually 11bits.
                 return copyParam(&def, pParam);
             }
         case 16:
@@ -477,6 +479,104 @@ boolean copyPatch(patch *pSrc, patch *pDest) {
     pDest->id = pSrc->id;
     setString(pSrc->name, pDest->name, PATCHNAME_LEN);
     return true;
+}
+
+// SID management
+void patchToRegisters(patch *p, byte *registers) {
+
+     // 1/2: Osc A: frequency (midi)
+     // Osc A: pulse width (setting to 2048 for now)
+     registers[2] = 0;
+     registers[3] = 16;
+     //  Osc A: Control Register
+     //
+     // 0000 0001 (1) - Gate (midi)
+     // 0000 0010 (2) - Sync
+     // 0000 0100 (4) - Ring mod
+     // 0000 1000 (8) - Test (not used)
+     // 0001 0000 (16) - Triangle
+     // 0010 0000 (32) - Saw
+     // 0100 0000 (64) - Square
+     // 1000 0000 (128) - Noise
+     switch (p->waveOscA) {
+         case 0: registers[4] |= 16; break;
+         case 1: registers[4] |= 32; break;
+         case 2: registers[4] |= 64; break;
+         case 3: registers[4] |= 4; break;
+         case 4: registers[4] |= 2; break;
+         case 5: registers[4] |= 128; break;
+     }
+     // Osc A: Attack, Decay
+     registers[5] = (p->attackOscA << 4) + p->decayOscA;
+     // Osc A: Sustain, Release
+     registers[6] = (p->sustainOscA << 4) + p->releaseOscA;
+
+     // 7/8: Osc B: frequency (midi)
+     // Osc B: pulse width (setting to 2048 for now)
+     registers[9] = 0;
+     registers[10] = 16;
+
+     // Osc B: Control Register
+     switch (p->waveOscA) {
+         case 0: registers[11] |= 16; break;
+         case 1: registers[11] |= 32; break;
+         case 2: registers[11] |= 64; break;
+         case 3: registers[11] |= 4; break;
+         case 4: registers[11] |= 2; break;
+         case 5: registers[11] |= 128; break;
+     }
+     // Osc B: Attack, Decay
+     registers[12] = (p->attackOscA << 4) + p->decayOscA;
+     // Osc B: Sustain, Release
+     registers[13] = (p->sustainOscA << 4) + p->releaseOscA;
+
+     // 14/15: Osc C: frequency (midi)
+     // Osc C: pulse width (setting to 2048 for now)
+     registers[16] = 0;
+     registers[17] = 16;
+
+     // Osc C: Control Register
+     switch (p->waveOscA) {
+         case 0: registers[18] |= 16; break;
+         case 1: registers[18] |= 32; break;
+         case 2: registers[18] |= 64; break;
+         case 3: registers[18] |= 4; break;
+         case 4: registers[18] |= 2; break;
+         case 5: registers[18] |= 128; break;
+     }
+     // Osc C: Attack, Decay
+     registers[19] = (p->attackOscA << 4) + p->decayOscA;
+     // Osc C: Sustain, Release
+     registers[20] = (p->sustainOscA << 4) + p->releaseOscA;
+
+     // Filter frequency (11 bits)
+     int ffreq = p->cutoff;
+     registers[21] = ffreq >> 3;
+     registers[22] = ffreq;
+
+     // Resonance, ?
+     registers[23] = p->resonance;
+     // Mode / Vol
+     // 0001 0000 (16) - lowpass
+     // 0010 0000 (32) - bandpass
+     // 0100 0000 (64) - highpass
+     // 0101 0000 (80) - notch
+     int fmode = 0;
+     switch (p->mode) {
+         case 0: fmode += 16; break;
+         case 1: fmode += 64; break;
+         case 2: fmode += 32; break;
+         case 3: fmode += 80; break;
+     }
+     registers[24] = fmode + p->volume;
+}
+
+void updateSynth(patch *p) {
+    static byte registers[25];
+    patchToRegisters(p, registers);
+    for (int i = 0; i < 25; i++) {
+        Serial.println(registers[i]);
+    }
 }
 
 // interrupt handler for the rotary encoder.
