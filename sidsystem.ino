@@ -1,6 +1,8 @@
 /* 
 
-Computer Controlled, a SID Synthesizer.
+SID System
+
+A modern MOS 6581 powered Synthesizer.
 
 The circuit:
 
@@ -8,10 +10,10 @@ LCD
 
  * RS pin to digital pin 12
  * Enable pin to digital pin 11
- * D4 pin to digital pin 7
- * D5 pin to digital pin 6
- * D6 pin to digital pin 5
- * D7 pin to digital pin 4
+ * LCD4 pin to digital pin 7
+ * LCD5 pin to digital pin 6
+ * LCD6 pin to digital pin 5
+ * LCD7 pin to digital pin 4
  * R/W pin to ground
  * 10K resistor:
  * ends to +5V and ground
@@ -26,6 +28,10 @@ Rotary Encoder
 Esc button
 
  * momentary switch to digital pin 9
+
+MIDI
+
+ * IN to digital pin 0 (must be disconnected during usb transfers)
 
 Shift register A
 
@@ -44,6 +50,7 @@ Shift register B
 #include <LiquidCrystal.h>
 #include "patch.h"
 #include "param.h"
+#include "MIDI.h"
 
 LiquidCrystal lcd(12, 11, 7, 6, 5, 4);
 const int enc_a = 2;
@@ -82,10 +89,17 @@ const int lcd_lines = 2;
 
 // Global state.
 signed int encoderVal;  // Store the encoder's rotation counts
+byte midiOn[3];
+byte midiCC[3];
+bool midiNotePlayed = false;
+bool midiControlPlayed = false;
 
 void setup() {
     lcd.begin(lcd_width, lcd_lines);
-    Serial.begin(9600); // For debugging.
+
+    MIDI.begin();
+    MIDI.setHandleNoteOn(HandleNoteOn);
+    MIDI.setHandleControlChange(HandleControlChange);
     
     pinMode(enc_button, INPUT);
     digitalWrite(enc_button, HIGH);
@@ -124,11 +138,26 @@ void loop() {
         lcd.cursor();
     }
 
+    MIDI.read();
+    updatePerformance(&activePatch);
+
     int update = pollButtons();
     if (updateState(&activePage, &activePatch, &activeParam, &menuValue, update))
         updateMenu(&activePage, &activePatch, &activeParam, &menuValue);
+}
 
-    delay(20);
+// MIDI Callbacks
+void HandleNoteOn(byte channel, byte note, byte velocity) {
+    midiNotePlayed = true;
+    midiOn[0] = channel;
+    midiOn[1] = note;
+    midiOn[2] = velocity;
+}
+void HandleControlChange(byte channel, byte number, byte value) {
+    midiControlPlayed = true;
+    midiCC[0] = channel;
+    midiCC[1] = number;
+    midiCC[2] = value;
 }
 
 // Responsible for detecting button presses.
@@ -582,6 +611,15 @@ void patchToRegisters(patch *p, byte *registers) {
      registers[24] = fmode + p->volume;
 }
 
+void writeSidRegister(byte loc, byte val) {
+    digitalWrite(sr_st_cp, LOW);
+    shiftOut(sr_ds , sr_sh_cp, MSBFIRST, loc);
+    shiftOut(sr_ds , sr_sh_cp, MSBFIRST, val);
+    digitalWrite(sr_st_cp, HIGH);
+
+    delay(50); // debugging, so we see it.
+}
+
 void updateSynth(patch *p) {
     static byte registers[25];
     patchToRegisters(p, registers);
@@ -590,15 +628,47 @@ void updateSynth(patch *p) {
             // do nothing.
         }
         else {
-            // push address (i)
-            digitalWrite(sr_st_cp, LOW);
-            shiftOut(sr_ds , sr_sh_cp, MSBFIRST, registers[i]);  
-            digitalWrite(sr_st_cp, HIGH);
-
-            // push register contents (registers[i])
-            Serial.println(registers[i]);
-            delay(200);
+            writeSidRegister(i, registers[i]);
         }
+    }
+}
+
+void updatePerformance(patch *p) {
+    // Values for C7 through B7.
+    static int octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
+        0xC085, 0x0980, 0xE6B0, 0xF467, 0x1F2F0};
+
+    // Ignore MIDI channels for now.
+    if (midiNotePlayed) {
+        midiNotePlayed = false;
+        if (midiOn[2] > 0) {
+
+            int note = octave[(midiOn[1] % 12) - 1];
+            note = note >> (midiOn[1] / 12);
+            byte freqLo = lowByte(word(note));
+            byte freqHi = highByte(word(note));
+
+            // Frequency registers
+            byte locFreq[3][2] = {{1, 2}, {7, 8}, {14, 15}};
+            for (int i = 0; i < 3; i++) {
+                writeSidRegister(locFreq[i][0], freqLo);
+                writeSidRegister(locFreq[i][1], freqHi);
+            }
+
+            // TODO volume
+        }
+        // TODO Control registers
+        //byte locControl[3] = {4, 11, 18};
+        //for (int i = 0; i < 3; i++) {
+        //    int val = locControl[i] | 1;
+        //    writeSidRegister(locControl[i], val);
+        //}
+    }
+    if (midiControlPlayed) {
+        midiControlPlayed = false;
+        // TODO
+        //byte registers[25];
+        //patchToRegisters(p, registers);
     }
 }
 
