@@ -27,7 +27,7 @@ Rotary Encoder
 
 Esc button
 
- * momentary switch to digital pin 9
+ * momentary switch to digital pin 10
 
 MIDI
 
@@ -44,6 +44,10 @@ Shift register B
  * SH_CP to analogue pin 1
  * ST_CP to analogue pin 2
  * DS to Shift register Q7'
+
+SID
+
+ * CLK from digital pin 9
  
 */
 
@@ -56,7 +60,7 @@ LiquidCrystal lcd(12, 11, 7, 6, 5, 4);
 const int enc_a = 2;
 const int enc_b = 3;
 const int enc_button = 8;
-const int button_esc = 9;
+const int button_esc = 10;
 
 const int sr_ds = A0;
 const int sr_sh_cp= A1;
@@ -95,6 +99,13 @@ bool midiNotePlayed = false;
 bool midiControlPlayed = false;
 
 void setup() {
+
+    //Use Timer/Counter1 to generate a 1MHz square wave on Arduino pin 9.
+    DDRB |= _BV(DDB1);                 //set OC1A/PB1 as output
+    TCCR1A = _BV(COM1A0);              //toggle OC1A on compare match
+    OCR1A = 7;                         //top value for counter
+    TCCR1B = _BV(WGM12) | _BV(CS10);   //CTC mode, prescaler clock/1
+
     lcd.begin(lcd_width, lcd_lines);
 
     MIDI.begin();
