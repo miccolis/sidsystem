@@ -48,6 +48,7 @@ Shift register B
 SID
 
  * CLK from digital pin 9
+ * CS from analogue pin 3
  
 */
 
@@ -65,6 +66,12 @@ const int button_esc = 10;
 const int sr_ds = A0;
 const int sr_sh_cp= A1;
 const int sr_st_cp= A2;
+
+const int sid_cs = A3;
+
+// Clock settings are duplicated in setup()
+const int sid_clk_reg = PORTB
+const int sid_clk_bit = DDB1;
 
 // These three defines (ROTATION_SPEED, ENCODER_POSITION_MAX, and
 // ENCODER_POSITION_MIN) control how fast the circular bar graph
@@ -131,6 +138,9 @@ void setup() {
     pinMode(sr_ds, OUTPUT);
     pinMode(sr_sh_cp, OUTPUT);
     pinMode(sr_st_cp, OUTPUT);
+
+    pinMode(sid_cs, OUTPUT);
+    digitalWrite(sid_cs, HIGH);
 }
 
 void loop() {
@@ -628,7 +638,13 @@ void writeSidRegister(byte loc, byte val) {
     shiftOut(sr_ds , sr_sh_cp, MSBFIRST, val);
     digitalWrite(sr_st_cp, HIGH);
 
-    delay(50); // debugging, so we see it.
+    // Data is written as clock goes from high to low.
+    digitalWrite(sid_cs, LOW)
+    // loop_until_bit_is_set(reg, big);
+    // loop_until_bit_is_set(reg, big);
+    // ...or
+    delayMicroseconds(300)
+    digitalWrite(sid_cs, HIGH)
 }
 
 void updateSynth(patch *p) {
