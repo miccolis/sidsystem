@@ -470,29 +470,29 @@ int *loadPatchValuePtr(int param, patch *p) {
 boolean loadFactoryDefaultPatch(int id, patch *pProg) {
     if (id == 0) {
         patch factory = {
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
+            0, 50, 0, 255, 50,
+            0, 50, 0, 255, 50,
+            0, 50, 0, 255, 50,
+            200, 0, 0, 0, 255,
             id, "Bleep",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 1) {
         patch factory = {
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
+            3, 126, 50, 200, 126,
+            3, 126, 50, 200, 126,
+            3, 126, 50, 200, 126,
+            127, 0, 0, 0, 255,
             id, "Spacey",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 2) {
         patch factory = {
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
+            1, 20, 20, 126, 20,
+            2, 80, 126, 126, 80,
+            3, 126, 126, 126, 126,
             1, 2, 3, 4, 5,
             id, "Belong",
         };
@@ -500,10 +500,10 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
     }
     else if (id == 3) {
         patch factory = {
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
-            1, 2, 3, 4, 5,
+            2, 0, 50, 0, 0,
+            2, 0, 50, 0, 0,
+            2, 0, 50, 0, 0,
+            1, 0, 50, 0, 0,
             id, "Disaste",
         };
         return copyPatch(&factory, pProg);
