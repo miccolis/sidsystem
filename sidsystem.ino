@@ -70,7 +70,7 @@ const int sr_st_cp= A2;
 const int sid_cs = A3;
 
 // Clock settings are duplicated in setup()
-const int sid_clk_reg = PORTB
+const int sid_clk_reg = PORTB;
 const int sid_clk_bit = DDB1;
 
 // These three defines (ROTATION_SPEED, ENCODER_POSITION_MAX, and
@@ -639,20 +639,20 @@ void writeSidRegister(byte loc, byte val) {
     digitalWrite(sr_st_cp, HIGH);
 
     // Data is written as clock goes from high to low.
-    digitalWrite(sid_cs, LOW)
+    digitalWrite(sid_cs, LOW);
     // loop_until_bit_is_set(reg, big);
     // loop_until_bit_is_set(reg, big);
     // ...or
-    delayMicroseconds(300)
-    digitalWrite(sid_cs, HIGH)
+    delayMicroseconds(300);
+    digitalWrite(sid_cs, HIGH);
 }
 
 void updateSynth(patch *p) {
     static byte registers[25];
     patchToRegisters(p, registers);
     for (int i = 0; i < 25; i++) {
-        if (i == 1 || i == 2 || i == 7 || i == 8  || i == 14 || i == 15) {
-            // do nothing.
+        if (i == 0 || i == 1 || i == 7 || i == 8  || i == 14 || i == 15) {
+            // Don't overwrite frequency registers.
         }
         else {
             writeSidRegister(i, registers[i]);
