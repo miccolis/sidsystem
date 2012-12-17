@@ -6,10 +6,10 @@
 struct patch {
     // Oscillators
     int waveOscA;
-    int attackOscA;
-    int decayOscA;
-    int sustainOscA;
-    int releaseOscA;
+    int attackOscA;  // nibble
+    int decayOscA;   // nibble
+    int sustainOscA; // nibble
+    int releaseOscA; // nibble
 
     int waveOscB;
     int attackOscB;
@@ -24,13 +24,13 @@ struct patch {
     int releaseOscC;
 
     // Filter
-    int cutoff;
+    int cutoff;     // 11-bit
     int resonance;
     int bypass;
     int mode;
 
     // General
-    int volume;
+    int volume;     // nibble
 
     // System
     int id;

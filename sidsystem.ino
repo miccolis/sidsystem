@@ -470,40 +470,40 @@ int *loadPatchValuePtr(int param, patch *p) {
 boolean loadFactoryDefaultPatch(int id, patch *pProg) {
     if (id == 0) {
         patch factory = {
-            0, 50, 0, 255, 50,
-            0, 50, 0, 255, 50,
-            0, 50, 0, 255, 50,
-            200, 0, 0, 0, 255,
+            0, 2, 0, 8, 2,
+            0, 2, 0, 8, 2,
+            0, 2, 0, 8, 2,
+            1024 , 0, 0, 0, 15,
             id, "Bleep",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 1) {
         patch factory = {
-            3, 126, 50, 200, 126,
-            3, 126, 50, 200, 126,
-            3, 126, 50, 200, 126,
-            127, 0, 0, 0, 255,
+            3, 4, 2, 4, 4,
+            3, 4, 2, 4, 4,
+            3, 4, 2, 4, 4,
+            1024, 0, 0, 0, 15,
             id, "Spacey",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 2) {
         patch factory = {
-            1, 20, 20, 126, 20,
-            2, 80, 126, 126, 80,
-            3, 126, 126, 126, 126,
-            1, 2, 3, 4, 5,
+            1, 1, 1, 4, 1,
+            2, 2, 4, 4, 2,
+            3, 3, 4, 4, 3,
+            1024, 0, 0, 0, 15,
             id, "Belong",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 3) {
         patch factory = {
-            2, 0, 50, 0, 0,
-            2, 0, 50, 0, 0,
-            2, 0, 50, 0, 0,
-            1, 0, 50, 0, 0,
+            2, 0, 8, 0, 0,
+            2, 0, 8, 0, 0,
+            2, 0, 8, 0, 0,
+            1024, 0, 0, 0, 15,
             id, "Disaste",
         };
         return copyPatch(&factory, pProg);
@@ -545,10 +545,10 @@ boolean copyPatch(patch *pSrc, patch *pDest) {
 // SID management
 void patchToRegisters(patch *p, byte *registers) {
 
-     // 1/2: Osc A: frequency (midi)
+     // 0/1: Osc A: frequency (midi)
      // Osc A: pulse width (setting to 2048 for now)
      registers[2] = 0;
-     registers[3] = 16;
+     registers[3] = 8;
      //  Osc A: Control Register
      //
      // 0000 0001 (1) - Gate (midi)
@@ -575,7 +575,7 @@ void patchToRegisters(patch *p, byte *registers) {
      // 7/8: Osc B: frequency (midi)
      // Osc B: pulse width (setting to 2048 for now)
      registers[9] = 0;
-     registers[10] = 16;
+     registers[10] = 8;
 
      // Osc B: Control Register
      switch (p->waveOscA) {
@@ -594,7 +594,7 @@ void patchToRegisters(patch *p, byte *registers) {
      // 14/15: Osc C: frequency (midi)
      // Osc C: pulse width (setting to 2048 for now)
      registers[16] = 0;
-     registers[17] = 16;
+     registers[17] = 8;
 
      // Osc C: Control Register
      switch (p->waveOscA) {
