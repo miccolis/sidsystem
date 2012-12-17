@@ -640,10 +640,9 @@ void writeSidRegister(byte loc, byte val) {
 
     // Data is written as clock goes from high to low.
     digitalWrite(sid_cs, LOW);
-    // loop_until_bit_is_set(reg, big);
-    // loop_until_bit_is_set(reg, big);
-    // ...or
-    delayMicroseconds(300);
+    // As written the time between the `sid_cs` line going to low and back up to
+    // high is always at least three full cycle on the `mhz click` so more
+    // accurate tracking doesn't appear to be required.
     digitalWrite(sid_cs, HIGH);
 }
 
