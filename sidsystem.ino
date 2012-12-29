@@ -36,13 +36,13 @@ MIDI
 Shift register A
 
  * DS to analogue pin 0
- * SH_CP to analogue pin 1
- * ST_CP to analogue pin 2
+ * ST_CP to analogue pin 1
+ * SH_CP to analogue pin 2
 
 Shift register B
 
- * SH_CP to analogue pin 1
- * ST_CP to analogue pin 2
+ * ST_CP to analogue pin 1
+ * SH_CP to analogue pin 0
  * DS to Shift register Q7'
 
 SID
@@ -64,8 +64,8 @@ const int enc_button = 8;
 const int button_esc = 10;
 
 const int sr_ds = A0;
-const int sr_sh_cp= A1;
-const int sr_st_cp= A2;
+const int sr_st_cp= A1;
+const int sr_sh_cp= A2;
 
 const int sid_cs = A3;
 
