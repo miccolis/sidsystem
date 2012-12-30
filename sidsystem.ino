@@ -120,7 +120,6 @@ void setup() {
     MIDI.setHandleControlChange(HandleControlChange);
     
     pinMode(enc_button, INPUT);
-    digitalWrite(enc_button, HIGH);
     
     pinMode(enc_a, INPUT);
     digitalWrite(enc_a, HIGH);
@@ -194,7 +193,7 @@ int pollButtons() {
             pressed[i] = t;
             buttonState[i] = digitalRead(buttons[i]);
             // Knob push
-            if (buttons[i] == enc_button && buttonState[i] == 0) update = 1;
+            if (buttons[i] == enc_button && buttonState[i] == 1) update = 1;
             // Esc button
             if (buttons[i] == button_esc && buttonState[i] == 0) update += 2;
         }
@@ -701,7 +700,6 @@ void updatePerformance(patch *p) {
 // interrupt handler for the rotary encoder.
 void readEncoder() {
   noInterrupts();
-  delayMicroseconds(5000);  // 'debounce'
   
   // enc_states[] is a fancy way to keep track of which direction
   // the encoder is turning. 2-bits of oldEncoderState are paired
