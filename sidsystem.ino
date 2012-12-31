@@ -248,6 +248,7 @@ boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int u
         else {
             *pValue = encoderVal;
             setPatchValue(pParam->id, pPatch, *pValue);
+            // TODO push update to synth.
         }
     }
     return true;
@@ -663,37 +664,40 @@ void updatePerformance(patch *p) {
     static int octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
         0xC085, 0x0980, 0xE6B0, 0xF467, 0x1F2F0};
 
+    // Control registers.
+    static byte controlReg[3] = {4, 11, 18};
+
     // Ignore MIDI channels for now.
     if (midiNotePlayed) {
         midiNotePlayed = false;
+        
+        // Control registers
+        byte registers[25];
+        patchToRegisters(p, registers); // TODO don't encode entire patch just
+                                        // to toggle three bits.
         if (midiOn[2] > 0) {
-
             int note = octave[(midiOn[1] % 12) - 1];
             note = note >> (midiOn[1] / 12);
             byte freqLo = lowByte(word(note));
             byte freqHi = highByte(word(note));
 
             // Frequency registers
-            byte locFreq[3][2] = {{1, 2}, {7, 8}, {14, 15}};
+            byte locFreq[3][2] = {{0, 1}, {7, 8}, {14, 15}};
             for (int i = 0; i < 3; i++) {
                 writeSidRegister(locFreq[i][0], freqLo);
                 writeSidRegister(locFreq[i][1], freqHi);
             }
-
             // TODO volume
         }
-        // TODO Control registers
-        //byte locControl[3] = {4, 11, 18};
-        //for (int i = 0; i < 3; i++) {
-        //    int val = locControl[i] | 1;
-        //    writeSidRegister(locControl[i], val);
-        //}
+
+        for (int i = 0; i < 3; i++) {
+            writeSidRegister(controlReg[i], registers[controlReg[i]] | 1); //only on for now.
+        }
     }
+
     if (midiControlPlayed) {
         midiControlPlayed = false;
         // TODO
-        //byte registers[25];
-        //patchToRegisters(p, registers);
     }
 }
 
