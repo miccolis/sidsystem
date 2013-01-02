@@ -140,6 +140,11 @@ void setup() {
 
     pinMode(sid_cs, OUTPUT);
     digitalWrite(sid_cs, HIGH);
+
+    lcd.print("<< powered up >>");
+    delay(2000);
+    lcd.blink();
+    lcd.cursor();
 }
 
 void loop() {
@@ -149,13 +154,9 @@ void loop() {
     static int menuValue = 0;           // Value of parameter.
 
     if (activePage == menu_start) {
-        lcd.print("<< powered up >>");
-        delay(2000);
         activePage = menu_patch;
         loadPatch(0, &activePatch);
         updateSynth(&activePatch);
-        lcd.blink();
-        lcd.cursor();
     }
 
     MIDI.read();
@@ -755,7 +756,10 @@ void displayError(char *pErr) {
     delay(2000);
 }
 
-void displayRegisters(byte *registers) {
+void displayRegisters(patch *p) {
+    byte registers[25];
+    patchToRegisters(p, registers);
+
     int d = 2500;
     lcd.clear();
     for (int i = 0; i < 25; i++) {
