@@ -473,7 +473,7 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
             0, 2, 0, 8, 2,
             0, 2, 0, 8, 2,
             0, 2, 0, 8, 2,
-            1024 , 0, 0, 0, 15,
+            1024, 0, 0, 0, 0,
             id, "Bleep",
         };
         return copyPatch(&factory, pProg);
@@ -483,7 +483,7 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
             3, 4, 2, 4, 4,
             3, 4, 2, 4, 4,
             3, 4, 2, 4, 4,
-            1024, 0, 0, 0, 15,
+            1024, 0, 0, 0, 0,
             id, "Spacey",
         };
         return copyPatch(&factory, pProg);
@@ -493,7 +493,7 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
             1, 1, 1, 4, 1,
             2, 2, 4, 4, 2,
             3, 3, 4, 4, 3,
-            1024, 0, 0, 0, 15,
+            1024, 0, 0, 0, 0,
             id, "Belong",
         };
         return copyPatch(&factory, pProg);
@@ -503,7 +503,7 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
             2, 0, 8, 0, 0,
             2, 0, 8, 0, 0,
             2, 0, 8, 0, 0,
-            1024, 0, 0, 0, 15,
+            1024, 0, 0, 0, 0,
             id, "Disaste",
         };
         return copyPatch(&factory, pProg);
@@ -544,6 +544,9 @@ boolean copyPatch(patch *pSrc, patch *pDest) {
 
 // SID management
 void patchToRegisters(patch *p, byte *registers) {
+    for (int i=0; i<25; i++) {
+        registers[i] = 0;
+    }
 
      // 0/1: Osc A: frequency (midi)
      // Osc A: pulse width (setting to 2048 for now)
@@ -560,12 +563,12 @@ void patchToRegisters(patch *p, byte *registers) {
      // 0100 0000 (64) - Square
      // 1000 0000 (128) - Noise
      switch (p->waveOscA) {
-         case 0: registers[4] |= 16; break;
-         case 1: registers[4] |= 32; break;
-         case 2: registers[4] |= 64; break;
-         case 3: registers[4] |= 4; break;
-         case 4: registers[4] |= 2; break;
-         case 5: registers[4] |= 128; break;
+         case 0: registers[4] = 0x10; break;
+         case 1: registers[4] = 0x20; break;
+         case 2: registers[4] = 0x40; break;
+         case 3: registers[4] = 0x4; break;
+         case 4: registers[4] = 0x2; break;
+         case 5: registers[4] = 0x80; break;
      }
      // Osc A: Attack, Decay
      registers[5] = (p->attackOscA << 4) + p->decayOscA;
@@ -578,18 +581,18 @@ void patchToRegisters(patch *p, byte *registers) {
      registers[10] = 8;
 
      // Osc B: Control Register
-     switch (p->waveOscA) {
-         case 0: registers[11] |= 16; break;
-         case 1: registers[11] |= 32; break;
-         case 2: registers[11] |= 64; break;
-         case 3: registers[11] |= 4; break;
-         case 4: registers[11] |= 2; break;
-         case 5: registers[11] |= 128; break;
+     switch (p->waveOscB) {
+         case 0: registers[11] = 0x10; break;
+         case 1: registers[11] = 0x20; break;
+         case 2: registers[11] = 0x40; break;
+         case 3: registers[11] = 0x4; break;
+         case 4: registers[11] = 0x2; break;
+         case 5: registers[11] = 0x80; break;
      }
      // Osc B: Attack, Decay
-     registers[12] = (p->attackOscA << 4) + p->decayOscA;
+     registers[12] = (p->attackOscB << 4) + p->decayOscB;
      // Osc B: Sustain, Release
-     registers[13] = (p->sustainOscA << 4) + p->releaseOscA;
+     registers[13] = (p->sustainOscB << 4) + p->releaseOscB;
 
      // 14/15: Osc C: frequency (midi)
      // Osc C: pulse width (setting to 2048 for now)
@@ -597,39 +600,39 @@ void patchToRegisters(patch *p, byte *registers) {
      registers[17] = 8;
 
      // Osc C: Control Register
-     switch (p->waveOscA) {
-         case 0: registers[18] |= 16; break;
-         case 1: registers[18] |= 32; break;
-         case 2: registers[18] |= 64; break;
-         case 3: registers[18] |= 4; break;
-         case 4: registers[18] |= 2; break;
-         case 5: registers[18] |= 128; break;
+     switch (p->waveOscC) {
+         case 0: registers[18] = 0x10; break;
+         case 1: registers[18] = 0x20; break;
+         case 2: registers[18] = 0x40; break;
+         case 3: registers[18] = 0x4; break;
+         case 4: registers[18] = 0x2; break;
+         case 5: registers[18] = 0x80; break;
      }
      // Osc C: Attack, Decay
-     registers[19] = (p->attackOscA << 4) + p->decayOscA;
+     registers[19] = (p->attackOscC << 4) + p->decayOscC;
      // Osc C: Sustain, Release
-     registers[20] = (p->sustainOscA << 4) + p->releaseOscA;
+     registers[20] = (p->sustainOscC << 4) + p->releaseOscC;
 
      // Filter frequency (11 bits)
      int ffreq = p->cutoff;
-     registers[21] = ffreq >> 3;
-     registers[22] = ffreq;
+     registers[21] = ffreq & 0x7; // 0000 0111
+     registers[22] = ffreq >> 3;
 
-     // Resonance, ?
-     registers[23] = p->resonance;
+     // Resonance, Routing
+     registers[23] = p->resonance << 4;
+     registers[23] |= 0x7; // 0111
+
      // Mode / Vol
-     // 0001 0000 (16) - lowpass
-     // 0010 0000 (32) - bandpass
-     // 0100 0000 (64) - highpass
-     // 0101 0000 (80) - notch
-     int fmode = 0;
+     // 0001 0000 (0x10) - lowpass
+     // 0010 0000 (0x40) - bandpass
+     // 0100 0000 (0x20) - highpass
+     // 0101 0000 (0x50) - notch
      switch (p->mode) {
-         case 0: fmode += 16; break;
-         case 1: fmode += 64; break;
-         case 2: fmode += 32; break;
-         case 3: fmode += 80; break;
+         case 0: registers[24] = 0x10; break;
+         case 1: registers[24] = 0x40; break;
+         case 2: registers[24] = 0x20; break;
+         case 3: registers[24] = 0x50; break;
      }
-     registers[24] = fmode + p->volume;
 }
 
 void writeSidRegister(byte loc, byte val) {
@@ -687,12 +690,22 @@ void updatePerformance(patch *p) {
                 writeSidRegister(locFreq[i][0], freqLo);
                 writeSidRegister(locFreq[i][1], freqHi);
             }
-            // TODO volume
+
+            // Volume - TODO use velocity
+            writeSidRegister(24, registers[24] | 0xF);
+
+            // Open gate.
+            for (int i = 0; i < 3; i++) {
+                writeSidRegister(controlReg[i], registers[controlReg[i]] | 0x1);
+            }
+        }
+        else {
+            // Close gate
+            for (int i = 0; i < 3; i++) {
+                writeSidRegister(controlReg[i], registers[controlReg[i]] ^ 0x1);
+            }
         }
 
-        for (int i = 0; i < 3; i++) {
-            writeSidRegister(controlReg[i], registers[controlReg[i]] | 1); //only on for now.
-        }
     }
 
     if (midiControlPlayed) {
@@ -740,6 +753,24 @@ void displayError(char *pErr) {
     lcd.clear();
     lcd.print(pErr);
     delay(2000);
+}
+
+void displayRegisters(byte *registers) {
+    int d = 2500;
+    lcd.clear();
+    for (int i = 0; i < 25; i++) {
+        if (i != 0 && i % 7 == 0) {
+            delay(d);
+            lcd.clear();
+        }
+        if (registers[i] < 16)
+            lcd.print(0);
+        lcd.print(registers[i], HEX);
+        lcd.print(' ');
+        if (i % 7 == 4)
+            lcd.setCursor(0,1);
+    }
+    delay(d);
 }
 
 void setString(const char src[], char *dest, int len) {
