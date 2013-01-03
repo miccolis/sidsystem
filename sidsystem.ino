@@ -678,12 +678,12 @@ void updatePerformance(patch *p) {
         // Control registers
         byte registers[25];
         patchToRegisters(p, registers); // TODO don't encode entire patch just
-                                        // to toggle three bits.
+                                        // to toggle four bits.
         if (midiOn[2] > 0) {
-            int note = octave[(midiOn[1] % 12) - 1];
-            note = note >> (midiOn[1] / 12);
-            byte freqLo = lowByte(word(note));
-            byte freqHi = highByte(word(note));
+            uint16_t note = octave[midiOn[1] % 12];
+            note = note >> (7 - (midiOn[1] / 12));
+            byte freqLo = note & 0xFF;
+            byte freqHi = note >> 8;
 
             // Frequency registers
             byte locFreq[3][2] = {{0, 1}, {7, 8}, {14, 15}};
@@ -706,7 +706,6 @@ void updatePerformance(patch *p) {
                 writeSidRegister(controlReg[i], registers[controlReg[i]] ^ 0x1);
             }
         }
-
     }
 
     if (midiControlPlayed) {
