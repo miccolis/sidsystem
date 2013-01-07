@@ -718,37 +718,22 @@ void updatePerformance(patch *p) {
 
 // interrupt handler for the rotary encoder.
 void readEncoder() {
-  noInterrupts();
-  
-  // enc_states[] is a fancy way to keep track of which direction
-  // the encoder is turning. 2-bits of oldEncoderState are paired
-  // with 2-bits of newEncoderState to create 16 possible values.
-  // Each of the 16 values will produce either a CW turn (1),
-  // CCW turn (-1) or no movement (0).
-  int8_t enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-  static uint8_t oldEncoderState = 0;
-  static uint8_t newEncoderState = 0;
+    static bool running = 0;
+    if (running) return;
+    running = 1;
 
-  // First, find the newEncoderState. This'll be a 2-bit value
-  // the msb is the state of the B pin. The lsb is the state
-  // of the A pin on the encoder.
-  newEncoderState = (digitalRead(enc_b)<<1) | (digitalRead(enc_a));
-  
-  // Now we pair oldEncoderState with new encoder state
-  // First we need to shift oldEncoder state left two bits.
-  // This'll put the last state in bits 2 and 3.
-  oldEncoderState <<= 2;
-  // Mask out everything in oldEncoderState except for the previous state
-  oldEncoderState &= 0xC0;
-  // Now add the newEncoderState. oldEncoderState will now be of
-  // the form: 0b0000(old B)(old A)(new B)(new A)
-  oldEncoderState |= newEncoderState; // add filteredport value
+    int8_t enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
+    static uint8_t oldEncoderState = 0;
+    static uint8_t newEncoderState = 0;
 
-  // Now we can update encoderVal with the updated position
-  // movement. We'll either add 1, -1 or 0 here.
-  encoderVal += enc_states[oldEncoderState];
-  
-  interrupts();
+    newEncoderState = (digitalRead(enc_b)<<1) | (digitalRead(enc_a));
+    // the form: 0b0000(old B)(old A)(new B)(new A)
+    oldEncoderState <<= 2;
+    oldEncoderState &= 0xC0;
+    oldEncoderState |= newEncoderState;
+
+    encoderVal += enc_states[oldEncoderState];
+    running = 0;
 }
 
 void displayError(char *pErr) {
