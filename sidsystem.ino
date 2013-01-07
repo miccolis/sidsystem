@@ -113,12 +113,6 @@ void setup() {
     OCR1A = 7;                         //top value for counter
     TCCR1B = _BV(WGM12) | _BV(CS10);   //CTC mode, prescaler clock/1
 
-    lcd.begin(lcd_width, lcd_lines);
-
-    MIDI.begin();
-    MIDI.setHandleNoteOn(HandleNoteOn);
-    MIDI.setHandleControlChange(HandleControlChange);
-    
     pinMode(enc_button, INPUT);
     
     pinMode(enc_a, INPUT);
@@ -128,11 +122,6 @@ void setup() {
 
     pinMode(button_esc, INPUT);
     digitalWrite(button_esc, HIGH);
-    
-    noInterrupts();
-    attachInterrupt(0, readEncoder, CHANGE);
-    attachInterrupt(1, readEncoder, CHANGE);
-    interrupts();
 
     pinMode(sr_ds, OUTPUT);
     pinMode(sr_sh_cp, OUTPUT);
@@ -141,8 +130,20 @@ void setup() {
     pinMode(sid_cs, OUTPUT);
     digitalWrite(sid_cs, HIGH);
 
+    MIDI.begin();
+    MIDI.setHandleNoteOn(HandleNoteOn);
+    MIDI.setHandleControlChange(HandleControlChange);
+    
+    delay(500);
+    lcd.begin(lcd_width, lcd_lines);
     lcd.print("<< powered up >>");
-    delay(2000);
+
+    noInterrupts();
+    attachInterrupt(0, readEncoder, CHANGE);
+    attachInterrupt(1, readEncoder, CHANGE);
+    interrupts();
+
+    delay(500);
     lcd.blink();
     lcd.cursor();
 }
