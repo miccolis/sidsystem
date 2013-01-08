@@ -8,8 +8,8 @@ The circuit:
 
 LCD
 
- * RS pin to digital pin 12
- * Enable pin to digital pin 11
+ * RS pin to digital pin A5
+ * Enable pin to digital pin A4
  * LCD4 pin to digital pin 7
  * LCD5 pin to digital pin 6
  * LCD6 pin to digital pin 5
@@ -57,7 +57,7 @@ SID
 #include "param.h"
 #include "MIDI.h"
 
-LiquidCrystal lcd(12, 11, 7, 6, 5, 4);
+LiquidCrystal lcd(A5, A4, 7, 6, 5, 4);
 const int enc_a = 2;
 const int enc_b = 3;
 const int enc_button = 8;
