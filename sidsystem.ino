@@ -671,7 +671,9 @@ void updatePerformance(patch *p) {
         0xCD85, 0xD9BD, 0xE6B0, 0xF467, 0x102F0};
 
     // Control registers.
-    static byte controlReg[3] = {4, 11, 18};
+    static uint8_t controlReg[3] = {4, 11, 18};
+    // Frequency registers
+    static uint8_t freqReg[3][2] = {{0, 1}, {7, 8}, {14, 15}};
 
     // Ignore MIDI channels for now.
     if (midiNotePlayed) {
@@ -689,11 +691,9 @@ void updatePerformance(patch *p) {
             uint8_t freqLo = note & 0xFF;
             uint8_t freqHi = note >> 8;
 
-            // Frequency registers
-            byte locFreq[3][2] = {{0, 1}, {7, 8}, {14, 15}};
             for (int i = 0; i < 3; i++) {
-                writeSidRegister(locFreq[i][0], freqLo);
-                writeSidRegister(locFreq[i][1], freqHi);
+                writeSidRegister(freqReg[i][0], freqLo);
+                writeSidRegister(freqReg[i][1], freqHi);
             }
 
             // Volume - TODO use velocity
