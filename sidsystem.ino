@@ -482,10 +482,10 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
     }
     else if (id == 1) {
         patch factory = {
-            3, 4, 2, 4, 4,
-            3, 4, 2, 4, 4,
-            3, 4, 2, 4, 4,
-            1024, 0, 0, 0, 0,
+            2, 12, 12, 15, 0,
+            2, 12, 12, 15, 0,
+            2, 12, 12, 15, 0,
+            2000, 8, 0, 0, 0,
             id, "Spacey",
         };
         return copyPatch(&factory, pProg);
