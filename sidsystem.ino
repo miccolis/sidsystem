@@ -53,6 +53,7 @@ SID
 */
 
 #include <LiquidCrystal.h>
+#include "utils.h"
 #include "patch.h"
 #include "param.h"
 #include "MIDI.h"
@@ -72,22 +73,6 @@ const int sid_cs = A3;
 // Clock settings are duplicated in setup()
 const int sid_clk_reg = PORTB;
 const int sid_clk_bit = DDB1;
-
-// These three defines (ROTATION_SPEED, ENCODER_POSITION_MAX, and
-// ENCODER_POSITION_MIN) control how fast the circular bar graph
-// will fill up as you rotate the encoder.These depend on the 
-// encoderVal variable being an unsigned 8-bit type.
-#define ROTATION_SPEED 3  // MIN: 0, MAX: 5, 3 is a good value
-#define ENCODER_POSITION_MAX  (256 >> (ROTATION_SPEED - 1)) - 1
-#define ENCODER_POSITION_MIN  0  // Don't go below 0
-
-#define PATCHNAME_LEN 8 // Max length of patch names.
-#define PARAMNAME_LEN 8 // Max length of param names.
-
-#define PARAM_UNAVAIL 0
-#define PARAM_LABEL 1
-#define PARAM_4BIT 4
-#define PARAM_11BIT 8
 
 const int menu_start = 0;
 const int menu_patch = 1;
@@ -410,13 +395,6 @@ boolean loadParam(int id, param *pParam) {
     return false;
 }
 
-boolean copyParam(param *pSrc, param *pDest) {
-    pDest->type = pSrc->type;
-    pDest->id = pSrc->id;
-    setString(pSrc->name, pDest->name, PARAMNAME_LEN);
-    return true;
-}
-
 // Patch methods
 boolean loadPatchName(int id, char *pStr) {
     patch p;
@@ -428,45 +406,6 @@ boolean loadPatchName(int id, char *pStr) {
 boolean loadPatch(int id, patch *pProg) {
     // TODO user patches.
     return loadFactoryDefaultPatch(id, pProg);
-}
-
-int loadPatchValue(int param, patch *p) {
-    int *v = loadPatchValuePtr(param, p);
-    return *v;
-}
-
-void setPatchValue(int param, patch *p, int val) {
-    int *v = loadPatchValuePtr(param, p);
-    *v = val;
-}
-
-int *loadPatchValuePtr(int param, patch *p) {
-    switch (param) {
-        case 0: return &(p->waveOscA);
-        case 1: return &(p->attackOscA);
-        case 2: return &(p->decayOscA);
-        case 3: return &(p->sustainOscA);
-        case 4: return &(p->releaseOscA);
-
-        case 5: return &(p->waveOscB);
-        case 6: return &(p->attackOscB);
-        case 7: return &(p->decayOscB);
-        case 8: return &(p->sustainOscB);
-        case 9: return &(p->releaseOscB);
-
-        case 10: return &(p->waveOscC);
-        case 11: return &(p->attackOscC);
-        case 12: return &(p->decayOscC);
-        case 13: return &(p->sustainOscC);
-        case 14: return &(p->releaseOscC);
-
-        case 15: return &(p->cutoff);
-        case 16: return &(p->resonance);
-        case 17: return &(p->bypass);
-        case 18: return &(p->mode);
-
-        case 19: return &(p->volume);
-    }
 }
 
 boolean loadFactoryDefaultPatch(int id, patch *pProg) {
@@ -511,37 +450,6 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
         return copyPatch(&factory, pProg);
     }
     return false;
-}
-
-boolean copyPatch(patch *pSrc, patch *pDest) {
-    pDest->waveOscA = pSrc->waveOscA;
-    pDest->attackOscA = pSrc->attackOscA;
-    pDest->decayOscA = pSrc->decayOscA;
-    pDest->sustainOscA = pSrc->sustainOscA;
-    pDest->releaseOscA = pSrc->releaseOscA;
-
-    pDest->waveOscB = pSrc->waveOscB;
-    pDest->attackOscB = pSrc->attackOscB;
-    pDest->decayOscB = pSrc->decayOscB;
-    pDest->sustainOscB = pSrc->sustainOscB;
-    pDest->releaseOscB = pSrc->releaseOscB;
-
-    pDest->waveOscC = pSrc->waveOscC;
-    pDest->attackOscC = pSrc->attackOscC;
-    pDest->decayOscC = pSrc->decayOscC;
-    pDest->sustainOscC = pSrc->sustainOscC;
-    pDest->releaseOscC = pSrc->releaseOscC;
- 
-    pDest->cutoff = pSrc->cutoff;
-    pDest->resonance = pSrc->resonance;
-    pDest->bypass = pSrc->bypass;
-    pDest->mode = pSrc->mode;
-
-    pDest->volume = pSrc->volume;
-
-    pDest->id = pSrc->id;
-    setString(pSrc->name, pDest->name, PATCHNAME_LEN);
-    return true;
 }
 
 // SID management
@@ -769,10 +677,3 @@ void displayRegisters(patch *p) {
     delay(d);
 }
 
-void setString(const char src[], char *dest, int len) {
-    int i;
-    for (i = 0; i < len && src[i] != '\0'; i++)
-        dest[i] = src[i];
-    for ( ; i < len; i++)
-        dest[i] = '\0';
-}
