@@ -30,7 +30,7 @@ struct patch {
     int mode;       // 0 - 4
 
     // General
-    int volume;     // unused
+    int volume;     // nibble
 
     // System
     int id;

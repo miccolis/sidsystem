@@ -495,7 +495,7 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
             1, 1, 1, 4, 1,
             2, 2, 4, 4, 2,
             3, 3, 4, 4, 3,
-            1024, 0, 0, 0, 0,
+            2047, 0, 0, 0, 4,
             id, "Belong",
         };
         return copyPatch(&factory, pProg);
@@ -674,6 +674,7 @@ void updatePerformance(patch *p) {
     static uint8_t controlReg[3] = {4, 11, 18};
     // Frequency registers
     static uint8_t freqReg[3][2] = {{0, 1}, {7, 8}, {14, 15}};
+    static uint8_t lastNote = 0; // first bit is on/off, 7-bits are note.
 
     // Ignore MIDI channels for now.
     if (midiNotePlayed) {
@@ -686,7 +687,6 @@ void updatePerformance(patch *p) {
         if (midiOn[2] > 0) {
             uint32_t note = octave[midiOn[1] % 12];
             int shift = (7 - (midiOn[1] / 12));
-
             note = note >> shift;
             uint8_t freqLo = note & 0xFF;
             uint8_t freqHi = note >> 8;
@@ -696,19 +696,23 @@ void updatePerformance(patch *p) {
                 writeSidRegister(freqReg[i][1], freqHi);
             }
 
-            // Volume - TODO use velocity
-            writeSidRegister(24, registers[24] | 0xF);
+            // Volume
+            uint8_t volume = ((midiOn[2] >> 3) + p->volume) & 0xF;
+            writeSidRegister(24, registers[24] | volume);
 
-            // Open gate.
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 3; i++) { // Open gates
+                if (lastNote) {
+                    writeSidRegister(controlReg[i], registers[controlReg[i]] & 0xFE);
+                }
                 writeSidRegister(controlReg[i], registers[controlReg[i]] | 0x1);
             }
+            lastNote = midiOn[1] | 0x80;
         }
-        else {
-            // Close gate
-            for (int i = 0; i < 3; i++) {
+        else if (lastNote == (midiOn[1] | 0x80)) {
+            for (int i = 0; i < 3; i++) { // Close gates
                 writeSidRegister(controlReg[i], registers[controlReg[i]] & 0xFE);
             }
+            lastNote = 0;
         }
     }
 
