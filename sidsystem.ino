@@ -707,7 +707,7 @@ void updatePerformance(patch *p) {
         else {
             // Close gate
             for (int i = 0; i < 3; i++) {
-                writeSidRegister(controlReg[i], registers[controlReg[i]] ^ 0x1);
+                writeSidRegister(controlReg[i], registers[controlReg[i]] & 0xFE);
             }
         }
     }
