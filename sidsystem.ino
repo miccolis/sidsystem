@@ -667,7 +667,7 @@ void updateSynth(patch *p) {
 void updatePerformance(patch *p) {
     // Values for C7 through B7.
     // B7, G7 & G#7 intentionally differ from the hex values in the data sheet
-    static int octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
+    static uint32_t octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
         0xCD85, 0xD9BD, 0xE6B0, 0xF467, 0x102F0};
 
     // Control registers.
@@ -682,10 +682,12 @@ void updatePerformance(patch *p) {
         patchToRegisters(p, registers); // TODO don't encode entire patch just
                                         // to toggle four bits.
         if (midiOn[2] > 0) {
-            int note = octave[midiOn[1] % 12];
-            note = note >> (7 - (midiOn[1] / 12));
-            byte freqLo = note & 0xFF;
-            byte freqHi = note >> 8;
+            uint32_t note = octave[midiOn[1] % 12];
+            int shift = (7 - (midiOn[1] / 12));
+
+            note = note >> shift;
+            uint8_t freqLo = note & 0xFF;
+            uint8_t freqHi = note >> 8;
 
             // Frequency registers
             byte locFreq[3][2] = {{0, 1}, {7, 8}, {14, 15}};
