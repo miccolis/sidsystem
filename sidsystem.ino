@@ -632,22 +632,14 @@ void updatePerformance(patch *p) {
 
 // interrupt handler for the rotary encoder.
 void readEncoder() {
-    static bool running = 0;
-    if (running) return;
-    running = 1;
-
-    int8_t enc_states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-    static uint8_t oldEncoderState = 0;
-    static uint8_t newEncoderState = 0;
-
-    newEncoderState = (digitalRead(enc_b)<<1) | (digitalRead(enc_a));
-    // the form: 0b0000(old B)(old A)(new B)(new A)
-    oldEncoderState <<= 2;
-    oldEncoderState &= 0xC0;
-    oldEncoderState |= newEncoderState;
-
-    encoderVal += enc_states[oldEncoderState];
-    running = 0;
+    noInterrupts();
+    static uint8_t prev;
+    uint8_t cur = (digitalRead(enc_b) << 1) | (digitalRead(enc_a));
+    if (prev != cur) {
+        if (cur == 3) encoderVal += (prev == 1 ? 1 : -1);
+        prev = cur;
+    }
+    interrupts();
 }
 
 void displayError(char *pErr) {
