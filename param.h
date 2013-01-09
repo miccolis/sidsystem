@@ -6,8 +6,8 @@
 
 #define PARAM_UNAVAIL 0
 #define PARAM_LABEL 1   // First bit is a flag for human readable labels
-#define PARAM_4BIT 8    // 4 << 1
-#define PARAM_11BIT 22  // 11 << 1
+#define PARAM_4BIT 32    // 16 << 1
+#define PARAM_11BIT 4096  // 2048 << 1
 
 struct param {
     int type;
