@@ -5,9 +5,9 @@
 #define PARAMNAME_LEN 8 // Max length of param names.
 
 #define PARAM_UNAVAIL 0
-#define PARAM_LABEL 1
-#define PARAM_4BIT 4
-#define PARAM_11BIT 8
+#define PARAM_LABEL 1   // First bit is a flag for human readable labels
+#define PARAM_4BIT 8    // 4 << 1
+#define PARAM_11BIT 22  // 11 << 1
 
 struct param {
     int type;

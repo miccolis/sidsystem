@@ -227,7 +227,9 @@ boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int u
         }
     }
     else if (*pPage == menu_value) {
-        // TODO validate value against param def
+        int limit = pParam->type >> 1;
+        if (encoderVal < 0) { encoderVal = 0; return true; }
+        if (encoderVal >= limit ) { encoderVal = (limit - 1); return true; }
         if (update) {
             *pPage = menu_param;
             encoderVal = pParam->id;
@@ -257,22 +259,13 @@ void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
     else if (*pPage == menu_param || *pPage == menu_value) {
         lcd.print(pParam->name);
         lcd.setCursor(9, 1);
-        switch (pParam->type) {
-            case PARAM_LABEL:
-                {
-                    char optionString[PARAMNAME_LEN]= {' '};
-                    loadParamOption(pParam, *pValue, optionString);
-                    lcd.print(optionString);
-                }
-                break;
-            case PARAM_4BIT:
-            case PARAM_11BIT:
-                lcd.print(*pValue);
-                break;
-            case PARAM_UNAVAIL:
-            default:
-                // noop
-                break;
+        if (pParam->type & PARAM_LABEL) {
+            char optionString[PARAMNAME_LEN]= {' '};
+            loadParamOption(pParam, *pValue, optionString);
+            lcd.print(optionString);
+        }
+        else if (pParam->type != PARAM_UNAVAIL) {
+            lcd.print(*pValue);
         }
 
         if      (*pPage == menu_param) lcd.setCursor(0, 1);
@@ -328,7 +321,7 @@ boolean loadParam(int id, param *pParam) {
         case 5:
         case 10:
             {
-                param def = {PARAM_LABEL, id, "  Wave"};
+                param def = {PARAM_LABEL | (6 << 1), id, "  Wave"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
@@ -383,7 +376,7 @@ boolean loadParam(int id, param *pParam) {
             }
         case 18:
             {
-                param def = {PARAM_LABEL, id, "Mode"};
+                param def = {PARAM_LABEL | (4 << 1), id, "Mode"};
                 return copyParam(&def, pParam);
             }
         case 19:
