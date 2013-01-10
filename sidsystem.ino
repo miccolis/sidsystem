@@ -249,7 +249,12 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
         else {
             *pValue = encoderVal;
             setPatchValue(pParam->id, pPatch, *pValue);
-            // TODO push update to synth.
+            int loc = patchParamRegister(pParam->id);
+            writeSidRegister(loc & 0xFF, pPatch->registers[loc & 0xFF]);
+            if (loc & 0xFF00) {
+                loc = loc >> 8;
+                writeSidRegister(loc, pPatch->registers[loc]); 
+            }
         }
     }
     return true;

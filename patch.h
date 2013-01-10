@@ -77,6 +77,39 @@ struct livePatch {
     char name[8];
 };
 
+// Returns two bytes, one register value in each.
+uint16_t patchParamRegister(int param) {
+    switch (param) {
+        // OSC A
+        case 0: return 4;
+        case 1: return 5;
+        case 2: return 5;
+        case 3: return 6;
+        case 4: return 6;
+
+        // OSC B
+        case 5: return 11;
+        case 6: return 12;
+        case 7: return 12;
+        case 8: return 13;
+        case 9: return 13;
+
+        // OSC C
+        case 10: return 18;
+        case 11: return 19;
+        case 12: return 19;
+        case 13: return 20;
+        case 14: return 20;
+
+        // Global
+        case 15: return (21 << 8) | 22;
+        case 16: return 23;
+        //case 17: return 0;
+        case 18: return 24;
+        case 19: return 24;
+    }
+}
+
 int *loadPatchValuePtr(int param, livePatch *p) {
     switch (param) {
         case 0: return &(p->waveOscA);
