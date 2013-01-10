@@ -85,10 +85,11 @@ const int lcd_lines = 2;
 
 // Global state.
 signed int encoderVal;
-byte midiOn[3];
-byte midiCC[3];
+uint8_t midiOn[3];
+uint8_t midiCC[3];
 bool midiNotePlayed = false;
 bool midiControlPlayed = false;
+uint8_t midiAssignments[20];
 
 void setup() {
 
@@ -242,19 +243,21 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
         int limit = pParam->type >> 1;
         if (encoderVal < 0) { encoderVal = 0; return true; }
         if (encoderVal >= limit ) { encoderVal = (limit - 1); return true; }
-        if (update) {
+        if (update & 1) {
             *pPage = menu_param;
             encoderVal = pParam->id;
         }
+        else if (update & 2) {
+            midiAssignments[pParam->id] = midiCC[1];
+            lcd.clear();
+            lcd.print("Assigned CC");
+            lcd.setCursor(0,1);
+            lcd.print(midiCC[1]);
+            delay(1000);
+        }
         else {
             *pValue = encoderVal;
-            setPatchValue(pParam->id, pPatch, *pValue);
-            int loc = patchParamRegister(pParam->id);
-            writeSidRegister(loc & 0xFF, pPatch->registers[loc & 0xFF]);
-            if (loc & 0xFF00) {
-                loc = loc >> 8;
-                writeSidRegister(loc, pPatch->registers[loc]); 
-            }
+            updatePerfParam(pParam, pPatch, *pValue);
         }
     }
     return true;
@@ -541,7 +544,23 @@ void updatePerformance(livePatch *p) {
 
     if (midiControlPlayed) {
         midiControlPlayed = false;
-        // TODO
+        for (int i = 0; i < 20; i++) {
+            if (midiAssignments[i] == midiCC[1]) {
+                param target;
+                loadParam(i, &target);
+                int v = (float)midiCC[2] / 127 * (float)(target.type >> 1);
+                updatePerfParam(&target, p, v);
+            }
+        }
     }
 }
 
+void updatePerfParam(param *pParam, livePatch *pPatch, int val) {
+    setPatchValue(pParam->id, pPatch, val);
+    int loc = patchParamRegister(pParam->id);
+    writeSidRegister(loc & 0xFF, pPatch->registers[loc & 0xFF]);
+    if (loc & 0xFF00) {
+        loc = loc >> 8;
+        writeSidRegister(loc, pPatch->registers[loc]); 
+    }
+}
