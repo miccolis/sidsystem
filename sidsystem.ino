@@ -84,7 +84,7 @@ const int lcd_width = 16;
 const int lcd_lines = 2;
 
 // Global state.
-signed int encoderVal;  // Store the encoder's rotation counts
+signed int encoderVal;
 byte midiOn[3];
 byte midiCC[3];
 bool midiNotePlayed = false;
@@ -135,7 +135,7 @@ void setup() {
 
 void loop() {
     static int activePage = menu_start; // "page" see "menu_x" constants.
-    static patch activePatch;           // Active program (ie being played & edited)
+    static livePatch activePatch;       // Active program (ie being played & edited)
     static param activeParam;           // Active parameter (ie being edited)
     static int menuValue = 0;           // Value of parameter.
 
@@ -167,6 +167,18 @@ void HandleControlChange(byte channel, byte number, byte value) {
     midiCC[2] = value;
 }
 
+// Interrupt handler for the rotary encoder.
+void readEncoder() {
+    noInterrupts();
+    static uint8_t prev;
+    uint8_t cur = (digitalRead(enc_b) << 1) | (digitalRead(enc_a));
+    if (prev != cur) {
+        if (cur == 3) encoderVal += (prev == 1 ? 1 : -1);
+        prev = cur;
+    }
+    interrupts();
+}
+
 // Responsible for detecting button presses.
 int pollButtons() {
     static int buttons[2] = {enc_button, button_esc};
@@ -189,7 +201,7 @@ int pollButtons() {
 }
 
 // Update system state based on input. Responsible for validation.
-boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int update) {
+boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update) {
     static int curEncoderVal = -1;
 
     if (curEncoderVal != encoderVal) curEncoderVal = encoderVal;
@@ -244,7 +256,7 @@ boolean updateState(int *pPage, patch *pPatch, param *pParam, int *pValue, int u
 }
 
 // Update the GUI based on system state change.
-void updateMenu(int *pPage, patch *pPatch, param *pParam, int *pValue) {
+void updateMenu(int *pPage, livePatch *pPatch, param *pParam, int *pValue) {
 
     lcd.clear();
     lcd.print(pPatch->name);
@@ -390,18 +402,18 @@ boolean loadParam(int id, param *pParam) {
 
 // Patch methods
 boolean loadPatchName(int id, char *pStr) {
-    patch p;
+    livePatch p;
     loadPatch(id, &p);
     setString(p.name, pStr, PATCHNAME_LEN);
     return true;
 }
 
-boolean loadPatch(int id, patch *pProg) {
+boolean loadPatch(int id, livePatch *pProg) {
     // TODO user patches.
     return loadFactoryDefaultPatch(id, pProg);
 }
 
-boolean loadFactoryDefaultPatch(int id, patch *pProg) {
+boolean loadFactoryDefaultPatch(int id, livePatch *pProg) {
     if (id == 0) {
         patch factory = {
             0, 2, 0, 8, 2,
@@ -446,98 +458,6 @@ boolean loadFactoryDefaultPatch(int id, patch *pProg) {
 }
 
 // SID management
-void patchToRegisters(patch *p, byte *registers) {
-    for (int i=0; i<25; i++) {
-        registers[i] = 0;
-    }
-
-     // 0/1: Osc A: frequency (midi)
-     // Osc A: pulse width (setting to 2048 for now)
-     registers[2] = 0;
-     registers[3] = 8;
-     //  Osc A: Control Register
-     //
-     // 0000 0001 (1) - Gate (midi)
-     // 0000 0010 (2) - Sync
-     // 0000 0100 (4) - Ring mod
-     // 0000 1000 (8) - Test (not used)
-     // 0001 0000 (16) - Triangle
-     // 0010 0000 (32) - Saw
-     // 0100 0000 (64) - Square
-     // 1000 0000 (128) - Noise
-     switch (p->waveOscA) {
-         case 0: registers[4] = 0x10; break;
-         case 1: registers[4] = 0x20; break;
-         case 2: registers[4] = 0x40; break;
-         case 3: registers[4] = 0x4; break;
-         case 4: registers[4] = 0x2; break;
-         case 5: registers[4] = 0x80; break;
-     }
-     // Osc A: Attack, Decay
-     registers[5] = (p->attackOscA << 4) + p->decayOscA;
-     // Osc A: Sustain, Release
-     registers[6] = (p->sustainOscA << 4) + p->releaseOscA;
-
-     // 7/8: Osc B: frequency (midi)
-     // Osc B: pulse width (setting to 2048 for now)
-     registers[9] = 0;
-     registers[10] = 8;
-
-     // Osc B: Control Register
-     switch (p->waveOscB) {
-         case 0: registers[11] = 0x10; break;
-         case 1: registers[11] = 0x20; break;
-         case 2: registers[11] = 0x40; break;
-         case 3: registers[11] = 0x4; break;
-         case 4: registers[11] = 0x2; break;
-         case 5: registers[11] = 0x80; break;
-     }
-     // Osc B: Attack, Decay
-     registers[12] = (p->attackOscB << 4) + p->decayOscB;
-     // Osc B: Sustain, Release
-     registers[13] = (p->sustainOscB << 4) + p->releaseOscB;
-
-     // 14/15: Osc C: frequency (midi)
-     // Osc C: pulse width (setting to 2048 for now)
-     registers[16] = 0;
-     registers[17] = 8;
-
-     // Osc C: Control Register
-     switch (p->waveOscC) {
-         case 0: registers[18] = 0x10; break;
-         case 1: registers[18] = 0x20; break;
-         case 2: registers[18] = 0x40; break;
-         case 3: registers[18] = 0x4; break;
-         case 4: registers[18] = 0x2; break;
-         case 5: registers[18] = 0x80; break;
-     }
-     // Osc C: Attack, Decay
-     registers[19] = (p->attackOscC << 4) + p->decayOscC;
-     // Osc C: Sustain, Release
-     registers[20] = (p->sustainOscC << 4) + p->releaseOscC;
-
-     // Filter frequency (11 bits)
-     int ffreq = p->cutoff;
-     registers[21] = ffreq & 0x7; // 0000 0111
-     registers[22] = ffreq >> 3;
-
-     // Resonance, Routing
-     registers[23] = p->resonance << 4;
-     registers[23] |= 0x7; // 0111
-
-     // Mode / Vol
-     // 0001 0000 (0x10) - lowpass
-     // 0010 0000 (0x40) - bandpass
-     // 0100 0000 (0x20) - highpass
-     // 0101 0000 (0x50) - notch
-     switch (p->mode) {
-         case 0: registers[24] = 0x10; break;
-         case 1: registers[24] = 0x40; break;
-         case 2: registers[24] = 0x20; break;
-         case 3: registers[24] = 0x50; break;
-     }
-}
-
 void writeSidRegister(byte loc, byte val) {
     digitalWrite(sr_st_cp, LOW);
     shiftOut(sr_ds , sr_sh_cp, MSBFIRST, loc);
@@ -552,20 +472,19 @@ void writeSidRegister(byte loc, byte val) {
     digitalWrite(sid_cs, HIGH);
 }
 
-void updateSynth(patch *p) {
-    static byte registers[25];
-    patchToRegisters(p, registers);
+void updateSynth(livePatch *p) {
+    patchToRegisters(p);
     for (int i = 0; i < 25; i++) {
         if (i == 0 || i == 1 || i == 7 || i == 8  || i == 14 || i == 15) {
             // Don't overwrite frequency registers.
         }
         else {
-            writeSidRegister(i, registers[i]);
+            writeSidRegister(i, p->registers[i]);
         }
     }
 }
 
-void updatePerformance(patch *p) {
+void updatePerformance(livePatch *p) {
     // Values for C7 through B7.
     // B7, G7 & G#7 intentionally differ from the hex values in the data sheet
     static uint32_t octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
@@ -582,9 +501,7 @@ void updatePerformance(patch *p) {
         midiNotePlayed = false;
         
         // Control registers
-        byte registers[25];
-        patchToRegisters(p, registers); // TODO don't encode entire patch just
-                                        // to toggle four bits.
+        patchToRegisters(p);
         if (midiOn[2] > 0) {
             uint32_t note = octave[midiOn[1] % 12];
             int shift = (7 - (midiOn[1] / 12));
@@ -599,19 +516,19 @@ void updatePerformance(patch *p) {
 
             // Volume
             uint8_t volume = ((midiOn[2] >> 3) + p->volume) & 0xF;
-            writeSidRegister(24, registers[24] | volume);
+            writeSidRegister(24, p->registers[24] | volume);
 
             for (int i = 0; i < 3; i++) { // Open gates
                 if (lastNote) {
-                    writeSidRegister(controlReg[i], registers[controlReg[i]] & 0xFE);
+                    writeSidRegister(controlReg[i], p->registers[controlReg[i]] & 0xFE);
                 }
-                writeSidRegister(controlReg[i], registers[controlReg[i]] | 0x1);
+                writeSidRegister(controlReg[i], p->registers[controlReg[i]] | 0x1);
             }
             lastNote = midiOn[1] | 0x80;
         }
         else if (lastNote == (midiOn[1] | 0x80)) {
             for (int i = 0; i < 3; i++) { // Close gates
-                writeSidRegister(controlReg[i], registers[controlReg[i]] & 0xFE);
+                writeSidRegister(controlReg[i], p->registers[controlReg[i]] & 0xFE);
             }
             lastNote = 0;
         }
@@ -621,44 +538,5 @@ void updatePerformance(patch *p) {
         midiControlPlayed = false;
         // TODO
     }
-}
-
-// interrupt handler for the rotary encoder.
-void readEncoder() {
-    noInterrupts();
-    static uint8_t prev;
-    uint8_t cur = (digitalRead(enc_b) << 1) | (digitalRead(enc_a));
-    if (prev != cur) {
-        if (cur == 3) encoderVal += (prev == 1 ? 1 : -1);
-        prev = cur;
-    }
-    interrupts();
-}
-
-void displayError(char *pErr) {
-    lcd.clear();
-    lcd.print(pErr);
-    delay(2000);
-}
-
-void displayRegisters(patch *p) {
-    byte registers[25];
-    patchToRegisters(p, registers);
-
-    int d = 2500;
-    lcd.clear();
-    for (int i = 0; i < 25; i++) {
-        if (i != 0 && i % 7 == 0) {
-            delay(d);
-            lcd.clear();
-        }
-        if (registers[i] < 16)
-            lcd.print(0);
-        lcd.print(registers[i], HEX);
-        lcd.print(' ');
-        if (i % 7 == 4)
-            lcd.setCursor(0,1);
-    }
-    delay(d);
 }
 
