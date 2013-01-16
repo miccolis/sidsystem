@@ -236,7 +236,7 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
         }
         else if (update & 2) {
             *pPage = menu_patch;
-            encoderVal = pPatch->id;
+            encoderVal = pPatch->patch.id;
         }
     }
     else if (*pPage == menu_value) {
@@ -267,7 +267,7 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
 void updateMenu(int *pPage, livePatch *pPatch, param *pParam, int *pValue) {
 
     lcd.clear();
-    lcd.print(pPatch->name);
+    lcd.print(pPatch->patch.name);
     lcd.setCursor(0, 1);
 
     if (*pPage == menu_patch) {
@@ -409,55 +409,55 @@ boolean loadParam(int id, param *pParam) {
 }
 
 // Patch methods
-boolean loadPatchName(int id, char *pStr) {
+bool loadPatchName(int id, char *pStr) {
     livePatch p;
     loadPatch(id, &p);
-    setString(p.name, pStr, PATCHNAME_LEN);
+    setString(p.patch.name, pStr, PATCHNAME_LEN);
     return true;
 }
 
-boolean loadPatch(int id, livePatch *pProg) {
+bool loadPatch(int id, livePatch *pProg) {
     // TODO user patches.
     return loadFactoryDefaultPatch(id, pProg);
 }
 
-boolean loadFactoryDefaultPatch(int id, livePatch *pProg) {
+bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
     if (id == 0) {
-        patch factory = {
-            0, 2, 0, 8, 2,
-            0, 2, 0, 8, 2,
-            0, 2, 0, 8, 2,
-            1024, 0, 0, 0, 0,
+        patchSettings factory = {
+            0, 0, 2, 0, 8, 2, 1,
+            0, 0, 2, 0, 8, 2, 1, 0,
+            0, 0, 2, 0, 8, 2, 1, 0,
+            1024, 0, 0, 0,
             id, "Bleep",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 1) {
-        patch factory = {
-            2, 12, 12, 15, 0,
-            2, 12, 12, 15, 0,
-            2, 12, 12, 15, 0,
-            2000, 8, 0, 0, 0,
+        patchSettings factory = {
+            2, 0, 12, 12, 15, 0, 1,
+            2, 0, 12, 12, 15, 0, 1, 0,
+            2, 0, 12, 12, 15, 0, 1, 0,
+            2000, 8, 0, 0,
             id, "Spacey",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 2) {
-        patch factory = {
-            1, 1, 1, 4, 1,
-            2, 2, 4, 4, 2,
-            3, 3, 4, 4, 3,
-            2047, 0, 0, 0, 4,
+        patchSettings factory = {
+            1, 0, 1, 1, 4, 1, 1, 
+            2, 0, 2, 4, 4, 2, 1, 0,
+            3, 0, 3, 4, 4, 3, 1, 0,
+            2047, 0, 0, 4,
             id, "Belong",
         };
         return copyPatch(&factory, pProg);
     }
     else if (id == 3) {
-        patch factory = {
-            2, 0, 8, 0, 0,
-            2, 0, 8, 0, 0,
-            2, 0, 8, 0, 0,
-            1024, 0, 0, 0, 0,
+        patchSettings factory = {
+            2, 0, 0, 8, 0, 0, 1,
+            2, 0, 0, 8, 0, 0, 1, 0,
+            2, 0, 0, 8, 0, 0, 1, 0,
+            1024, 0, 0, 0,
             id, "Disaste",
         };
         return copyPatch(&factory, pProg);
@@ -480,6 +480,11 @@ void writeSidRegister(byte loc, byte val) {
     digitalWrite(sid_cs, HIGH);
 }
 
+// Wrapper around writeSidRegister, forces changes to be in livepatch.registers
+void writeSR(livePatch *p, uint8_t i) {
+    writeSidRegister(i, p->registers[i]);
+}
+
 void updateSynth(livePatch *p) {
     patchToRegisters(p);
     for (int i = 0; i < 25; i++) {
@@ -487,7 +492,7 @@ void updateSynth(livePatch *p) {
             // Don't overwrite frequency registers.
         }
         else {
-            writeSidRegister(i, p->registers[i]);
+            writeSR(p, i);
         }
     }
 }
@@ -523,20 +528,24 @@ void updatePerformance(livePatch *p) {
             }
 
             // Volume
-            uint8_t volume = ((midiOn[2] >> 3) + p->volume) & 0xF;
-            writeSidRegister(24, p->registers[24] | volume);
+            p->registers[24] |= ((midiOn[2] >> 3) + p->patch.volume) & 0xF;
+            writeSR(p, 24);
 
             for (int i = 0; i < 3; i++) { // Open gates
                 if (lastNote) {
-                    writeSidRegister(controlReg[i], p->registers[controlReg[i]] & 0xFE);
+                    p->registers[controlReg[i]] &= 0xFE;
+                    writeSR(p, controlReg[i]);
+                } else {
+                    p->registers[controlReg[i]] |= 0x1;
+                    writeSR(p, controlReg[i]);
                 }
-                writeSidRegister(controlReg[i], p->registers[controlReg[i]] | 0x1);
             }
             lastNote = midiOn[1] | 0x80;
         }
         else if (lastNote == (midiOn[1] | 0x80)) {
             for (int i = 0; i < 3; i++) { // Close gates
-                writeSidRegister(controlReg[i], p->registers[controlReg[i]] & 0xFE);
+                p->registers[controlReg[i]] &= 0xFE;
+                writeSR(p, controlReg[i]);
             }
             lastNote = 0;
         }
@@ -558,9 +567,9 @@ void updatePerformance(livePatch *p) {
 void updatePerfParam(param *pParam, livePatch *pPatch, int val) {
     setPatchValue(pParam->id, pPatch, val);
     int loc = patchParamRegister(pParam->id);
-    writeSidRegister(loc & 0xFF, pPatch->registers[loc & 0xFF]);
+    writeSR(pPatch, loc & 0xFF);
     if (loc & 0xFF00) {
         loc = loc >> 8;
-        writeSidRegister(loc, pPatch->registers[loc]); 
+        writeSR(pPatch, loc);
     }
 }

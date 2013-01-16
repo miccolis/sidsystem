@@ -6,33 +6,43 @@
 
 #define PATCHNAME_LEN 8 // Max length of patch names.
 
-struct patch {
+struct patchSettings {
     // Oscillators
+    // A: 0-6
     int waveOscA;    // 0 - 6
+    int pulseWidthOscA;
     int attackOscA;  // nibble
     int decayOscA;   // nibble
     int sustainOscA; // nibble
     int releaseOscA; // nibble
+    int filterOscA; // bool
 
+    // B: 7-14
     int waveOscB;
+    int pulseWidthOscB;
     int attackOscB;
     int decayOscB;
     int sustainOscB;
     int releaseOscB;
+    int filterOscB;
+    int detuneOscB;
 
+    // C: 15-22
     int waveOscC;
+    int pulseWidthOscC;
     int attackOscC;
     int decayOscC;
     int sustainOscC;
     int releaseOscC;
+    int filterOscC;
+    int detuneOscC;
 
-    // Filter
+    // Filter: 23-25
     int cutoff;     // 11-bit
     int resonance;  // nibble
-    int bypass;     // unused
     int mode;       // 0 - 4
 
-    // General
+    // General: 26
     int volume;     // nibble
 
     // System
@@ -40,102 +50,86 @@ struct patch {
     char name[8];
 };
 
-// Identical to Patch, but for inclusion of registers.
 struct livePatch {
     uint8_t registers[25];
-
-    // Oscillators
-    int waveOscA;    // 0 - 6
-    int attackOscA;  // nibble
-    int decayOscA;   // nibble
-    int sustainOscA; // nibble
-    int releaseOscA; // nibble
-
-    int waveOscB;
-    int attackOscB;
-    int decayOscB;
-    int sustainOscB;
-    int releaseOscB;
-
-    int waveOscC;
-    int attackOscC;
-    int decayOscC;
-    int sustainOscC;
-    int releaseOscC;
-
-    // Filter
-    int cutoff;     // 11-bit
-    int resonance;  // nibble
-    int bypass;     // unused
-    int mode;       // 0 - 4
-
-    // General
-    int volume;     // nibble
-
-    // System
-    int id;
-    char name[8];
+    patchSettings patch;
 };
 
 // Returns two bytes, one register value in each.
 uint16_t patchParamRegister(int param) {
     switch (param) {
         // OSC A
-        case 0: return 4;
-        case 1: return 5;
-        case 2: return 5;
-        case 3: return 6;
-        case 4: return 6;
+        case 0: return 4;           // Waveform
+        case 1: return (2 << 8 | 3);// Pulse width
+        case 2: return 5;           // Attack
+        case 3: return 5;           // Decay
+        case 4: return 6;           // Sustain
+        case 5: return 6;           // Releasea
+        case 6: return 23;          // Filter enable
 
         // OSC B
-        case 5: return 11;
-        case 6: return 12;
-        case 7: return 12;
-        case 8: return 13;
-        case 9: return 13;
+        case 7: return 11;
+        case 8: return (9 << 8 | 10);
+        case 9: return 12;
+        case 10: return 12;
+        case 11: return 13;
+        case 12: return 13;
+        case 13: return 23;
+        case 14: return (7 << 8 | 8); // Detune
 
         // OSC C
-        case 10: return 18;
-        case 11: return 19;
-        case 12: return 19;
-        case 13: return 20;
-        case 14: return 20;
+        case 15: return 18;
+        case 16: return (16 << 8 | 17);
+        case 17: return 19;
+        case 18: return 19;
+        case 19: return 20;
+        case 20: return 20;
+        case 21: return 23;
+        case 22: return (14 << 8 | 15);
 
-        // Global
-        case 15: return (21 << 8) | 22;
-        case 16: return 23;
-        //case 17: return 0;
-        case 18: return 24;
-        case 19: return 24;
+        // Filter
+        case 23: return (21 << 8) | 22; // Filter cutoff
+        case 24: return 23;             // Resonance
+        case 25: return 24;             // Filter mode
+
+        // General
+        case 26: return 24;             // Volume
     }
 }
 
 int *loadPatchValuePtr(int param, livePatch *p) {
     switch (param) {
-        case 0: return &(p->waveOscA);
-        case 1: return &(p->attackOscA);
-        case 2: return &(p->decayOscA);
-        case 3: return &(p->sustainOscA);
-        case 4: return &(p->releaseOscA);
+        case 0: return &(p->patch.waveOscA);
+        case 1: return &(p->patch.pulseWidthOscA);
+        case 2: return &(p->patch.attackOscA);
+        case 3: return &(p->patch.decayOscA);
+        case 4: return &(p->patch.sustainOscA);
+        case 5: return &(p->patch.releaseOscA);
+        case 6: return &(p->patch.filterOscA);
 
-        case 5: return &(p->waveOscB);
-        case 6: return &(p->attackOscB);
-        case 7: return &(p->decayOscB);
-        case 8: return &(p->sustainOscB);
-        case 9: return &(p->releaseOscB);
+        case 7: return &(p->patch.waveOscB);
+        case 8: return &(p->patch.pulseWidthOscB);
+        case 9: return &(p->patch.attackOscB);
+        case 10: return &(p->patch.decayOscB);
+        case 11: return &(p->patch.sustainOscB);
+        case 12: return &(p->patch.releaseOscB);
+        case 13: return &(p->patch.filterOscB);
+        case 14: return &(p->patch.detuneOscB);
 
-        case 10: return &(p->waveOscC);
-        case 11: return &(p->attackOscC);
-        case 12: return &(p->decayOscC);
-        case 13: return &(p->sustainOscC);
-        case 14: return &(p->releaseOscC);
+        case 15: return &(p->patch.waveOscC);
+        case 16: return &(p->patch.pulseWidthOscC);
+        case 17: return &(p->patch.attackOscC);
+        case 18: return &(p->patch.decayOscC);
+        case 19: return &(p->patch.sustainOscC);
+        case 20: return &(p->patch.releaseOscC);
+        case 21: return &(p->patch.filterOscC);
+        case 22: return &(p->patch.detuneOscC);
 
-        case 15: return &(p->cutoff);
-        case 16: return &(p->resonance);
-        case 17: return &(p->bypass);
-        case 18: return &(p->mode);
+        case 23: return &(p->patch.cutoff);
+        case 24: return &(p->patch.resonance);
+        case 25: return &(p->patch.mode);
 
-        case 19: return &(p->volume);
+        case 26: return &(p->patch.volume);
     }
 }
 
@@ -150,122 +144,133 @@ void setPatchValue(int param, livePatch *p, int val) {
 }
 
 void patchToRegisters(livePatch *p) {
+    // TODO support pulseWidth, detune, bypass
 
-     // 0/1: Osc A: frequency (midi)
-     // Osc A: pulse width (setting to 2048 for now)
-     p->registers[2] = 0;
-     p->registers[3] = 8;
-     //  Osc A: Control Register
-     //
-     // 0000 0001 (1) - Gate (midi)
-     // 0000 0010 (2) - Sync
-     // 0000 0100 (4) - Ring mod
-     // 0000 1000 (8) - Test (not used)
-     // 0001 0000 (16) - Triangle
-     // 0010 0000 (32) - Saw
-     // 0100 0000 (64) - Square
-     // 1000 0000 (128) - Noise
-     switch (p->waveOscA) {
-         case 0: p->registers[4] = 0x10; break;
-         case 1: p->registers[4] = 0x20; break;
-         case 2: p->registers[4] = 0x40; break;
-         case 3: p->registers[4] = 0x4; break;
-         case 4: p->registers[4] = 0x2; break;
-         case 5: p->registers[4] = 0x80; break;
-     }
-     // Osc A: Attack, Decay
-     p->registers[5] = (p->attackOscA << 4) + p->decayOscA;
-     // Osc A: Sustain, Release
-     p->registers[6] = (p->sustainOscA << 4) + p->releaseOscA;
+    // 0/1: Osc A: frequency (midi)
+    // Osc A: pulse width (setting to 2048 for now)
+    p->registers[2] = 0;
+    p->registers[4] = 8;
+    //  Osc A: Control Register
+    //
+    // 0000 0001 (1) - Gate (midi)
+    // 0000 0010 (2) - Sync
+    // 0000 0100 (4) - Ring mod
+    // 0000 1000 (8) - Test (not used)
+    // 0001 0000 (16) - Triangle
+    // 0010 0000 (32) - Saw
+    // 0100 0000 (64) - Square
+    // 1000 0000 (128) - Noise
+    switch (p->patch.waveOscA) {
+        case 0: p->registers[4] = 0x10; break;
+        case 1: p->registers[4] = 0x20; break;
+        case 2: p->registers[4] = 0x40; break;
+        case 3: p->registers[4] = 0x4; break;
+        case 4: p->registers[4] = 0x2; break;
+        case 5: p->registers[4] = 0x80; break;
+    }
+    // Osc A: Attack, Decay
+    p->registers[5] = (p->patch.attackOscA << 4) + p->patch.decayOscA;
+    // Osc A: Sustain, Release
+    p->registers[6] = (p->patch.sustainOscA << 4) + p->patch.releaseOscA;
 
-     // 7/8: Osc B: frequency (midi)
-     // Osc B: pulse width (setting to 2048 for now)
-     p->registers[9] = 0;
-     p->registers[10] = 8;
+    // 7/8: Osc B: frequency (midi)
+    // Osc B: pulse width (setting to 2048 for now)
+    p->registers[9] = 0;
+    p->registers[10] = 8;
 
-     // Osc B: Control Register
-     switch (p->waveOscB) {
-         case 0: p->registers[11] = 0x10; break;
-         case 1: p->registers[11] = 0x20; break;
-         case 2: p->registers[11] = 0x40; break;
-         case 3: p->registers[11] = 0x4; break;
-         case 4: p->registers[11] = 0x2; break;
-         case 5: p->registers[11] = 0x80; break;
-     }
-     // Osc B: Attack, Decay
-     p->registers[12] = (p->attackOscB << 4) + p->decayOscB;
-     // Osc B: Sustain, Release
-     p->registers[13] = (p->sustainOscB << 4) + p->releaseOscB;
+    // Osc B: Control Register
+    switch (p->patch.waveOscB) {
+        case 0: p->registers[11] = 0x10; break;
+        case 1: p->registers[11] = 0x20; break;
+        case 2: p->registers[11] = 0x40; break;
+        case 3: p->registers[11] = 0x4; break;
+        case 4: p->registers[11] = 0x2; break;
+        case 5: p->registers[11] = 0x80; break;
+    }
+    // Osc B: Attack, Decay
+    p->registers[12] = (p->patch.attackOscB << 4) + p->patch.decayOscB;
+    // Osc B: Sustain, Release
+    p->registers[13] = (p->patch.sustainOscB << 4) + p->patch.releaseOscB;
 
-     // 14/15: Osc C: frequency (midi)
-     // Osc C: pulse width (setting to 2048 for now)
-     p->registers[16] = 0;
-     p->registers[17] = 8;
+    // 14/15: Osc C: frequency (midi)
+    // Osc C: pulse width (setting to 2048 for now)
+    p->registers[16] = 0;
+    p->registers[17] = 8;
 
-     // Osc C: Control Register
-     switch (p->waveOscC) {
-         case 0: p->registers[18] = 0x10; break;
-         case 1: p->registers[18] = 0x20; break;
-         case 2: p->registers[18] = 0x40; break;
-         case 3: p->registers[18] = 0x4; break;
-         case 4: p->registers[18] = 0x2; break;
-         case 5: p->registers[18] = 0x80; break;
-     }
-     // Osc C: Attack, Decay
-     p->registers[19] = (p->attackOscC << 4) + p->decayOscC;
-     // Osc C: Sustain, Release
-     p->registers[20] = (p->sustainOscC << 4) + p->releaseOscC;
+    // Osc C: Control Register
+    switch (p->patch.waveOscC) {
+        case 0: p->registers[18] = 0x10; break;
+        case 1: p->registers[18] = 0x20; break;
+        case 2: p->registers[18] = 0x40; break;
+        case 3: p->registers[18] = 0x4; break;
+        case 4: p->registers[18] = 0x2; break;
+        case 5: p->registers[18] = 0x80; break;
+    }
+    // Osc C: Attack, Decay
+    p->registers[19] = (p->patch.attackOscC << 4) + p->patch.decayOscC;
+    // Osc C: Sustain, Release
+    p->registers[20] = (p->patch.sustainOscC << 4) + p->patch.releaseOscC;
 
-     // Filter frequency (11 bits)
-     int ffreq = p->cutoff;
-     p->registers[21] = ffreq & 0x7; // 0000 0111
-     p->registers[22] = ffreq >> 3;
+    // Filter frequency (11 bits)
+    int ffreq = p->patch.cutoff;
+    p->registers[21] = ffreq & 0x7; // 0000 0111
+    p->registers[22] = ffreq >> 3;
 
-     // Resonance, Routing
-     p->registers[23] = p->resonance << 4;
-     p->registers[23] |= 0x7; // 0111
+    // Resonance, Routing
+    p->registers[23] = p->patch.resonance << 4;
+    // 0100 - OSC C
+    // 0010 - OSC B
+    // 0001 - OSC A
+    p->registers[23] |= 0x7; // 0111
 
-     // Mode / Vol
-     // 0001 0000 (0x10) - lowpass
-     // 0010 0000 (0x40) - bandpass
-     // 0100 0000 (0x20) - highpass
-     // 0101 0000 (0x50) - notch
-     switch (p->mode) {
-         case 0: p->registers[24] = 0x10; break;
-         case 1: p->registers[24] = 0x40; break;
-         case 2: p->registers[24] = 0x20; break;
-         case 3: p->registers[24] = 0x50; break;
-     }
+    // Mode / Vol
+    // 0001 0000 (0x10) - lowpass
+    // 0010 0000 (0x40) - bandpass
+    // 0100 0000 (0x20) - highpass
+    // 0101 0000 (0x50) - notch
+    switch (p->patch.mode) {
+        case 0: p->registers[24] = 0x10; break;
+        case 1: p->registers[24] = 0x40; break;
+        case 2: p->registers[24] = 0x20; break;
+        case 3: p->registers[24] = 0x50; break;
+    }
 }
 
-bool copyPatch(patch *pSrc, livePatch *pDest) {
-    pDest->waveOscA = pSrc->waveOscA;
-    pDest->attackOscA = pSrc->attackOscA;
-    pDest->decayOscA = pSrc->decayOscA;
-    pDest->sustainOscA = pSrc->sustainOscA;
-    pDest->releaseOscA = pSrc->releaseOscA;
+bool copyPatch(patchSettings *pSrc, livePatch *pDest) {
+    pDest->patch.waveOscA       = pSrc->waveOscA;
+    pDest->patch.pulseWidthOscA = pSrc->pulseWidthOscA;
+    pDest->patch.attackOscA     = pSrc->attackOscA;
+    pDest->patch.decayOscA      = pSrc->decayOscA;
+    pDest->patch.sustainOscA    = pSrc->sustainOscA;
+    pDest->patch.releaseOscA    = pSrc->releaseOscA;
+    pDest->patch.filterOscA     = pSrc->filterOscA;
 
-    pDest->waveOscB = pSrc->waveOscB;
-    pDest->attackOscB = pSrc->attackOscB;
-    pDest->decayOscB = pSrc->decayOscB;
-    pDest->sustainOscB = pSrc->sustainOscB;
-    pDest->releaseOscB = pSrc->releaseOscB;
+    pDest->patch.waveOscB       = pSrc->waveOscB;
+    pDest->patch.pulseWidthOscB = pSrc->pulseWidthOscB;
+    pDest->patch.attackOscB     = pSrc->attackOscB;
+    pDest->patch.decayOscB      = pSrc->decayOscB;
+    pDest->patch.sustainOscB    = pSrc->sustainOscB;
+    pDest->patch.releaseOscB    = pSrc->releaseOscB;
+    pDest->patch.filterOscB     = pSrc->filterOscB;
+    pDest->patch.detuneOscB     = pSrc->detuneOscB;
 
-    pDest->waveOscC = pSrc->waveOscC;
-    pDest->attackOscC = pSrc->attackOscC;
-    pDest->decayOscC = pSrc->decayOscC;
-    pDest->sustainOscC = pSrc->sustainOscC;
-    pDest->releaseOscC = pSrc->releaseOscC;
+    pDest->patch.waveOscC       = pSrc->waveOscC;
+    pDest->patch.pulseWidthOscC = pSrc->pulseWidthOscC;
+    pDest->patch.attackOscC     = pSrc->attackOscC;
+    pDest->patch.decayOscC      = pSrc->decayOscC;
+    pDest->patch.sustainOscC    = pSrc->sustainOscC;
+    pDest->patch.releaseOscC    = pSrc->releaseOscC;
+    pDest->patch.filterOscC     = pSrc->filterOscC;
+    pDest->patch.detuneOscC     = pSrc->detuneOscC;
  
-    pDest->cutoff = pSrc->cutoff;
-    pDest->resonance = pSrc->resonance;
-    pDest->bypass = pSrc->bypass;
-    pDest->mode = pSrc->mode;
+    pDest->patch.cutoff    = pSrc->cutoff;
+    pDest->patch.resonance = pSrc->resonance;
+    pDest->patch.mode      = pSrc->mode;
 
-    pDest->volume = pSrc->volume;
+    pDest->patch.volume = pSrc->volume;
 
-    pDest->id = pSrc->id;
-    setString(pSrc->name, pDest->name, PATCHNAME_LEN);
+    pDest->patch.id = pSrc->id;
+    setString(pSrc->name, pDest->patch.name, PATCHNAME_LEN);
     patchToRegisters(pDest);
     return true;
 }
