@@ -225,7 +225,7 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
     }
     else if (*pPage == menu_param) {
         if (encoderVal < -1) { encoderVal = -1; return true; }
-        if (encoderVal > 20) { encoderVal = 20; return true; }
+        if (encoderVal > 26) { encoderVal = 26; return true; }
 
         loadParam(encoderVal, pParam);
         *pValue = loadPatchValue(pParam->id, pPatch);
@@ -303,8 +303,8 @@ boolean loadParamOption(param *pParam, int idx, char *pStr) {
     }
     switch (pParam->id) {
         case 0:
-        case 5:
-        case 10:
+        case 7:
+        case 15:
             // Waveform
             if      (idx == 0) setString("Triangle", pStr, PARAMNAME_LEN);
             else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
@@ -314,7 +314,7 @@ boolean loadParamOption(param *pParam, int idx, char *pStr) {
             else if (idx == 5) setString("Noise", pStr, PARAMNAME_LEN);
             else return false;
             return true;
-        case 18:
+        case 25:
             // Filter mode
             if      (idx == 0) setString("Low Pass", pStr, PARAMNAME_LEN);
             else if (idx == 1) setString("Hi Pass", pStr, PARAMNAME_LEN);
@@ -333,73 +333,92 @@ boolean loadParam(int id, param *pParam) {
     }
 
     char osc = 'A';
-    if      (id > 4 && id < 10)  osc = 'B';
-    else if (id > 9 && id < 15) osc = 'C';
+    if      (id > 6 && id < 15)  osc = 'B';
+    else if (id > 14 && id < 23) osc = 'C';
 
     switch (id) {
         case 0:
-        case 5:
-        case 10:
+        case 7:
+        case 15:
             {
                 param def = {PARAM_LABEL | (6 << 1), id, "  Wave"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
         case 1:
-        case 6:
-        case 11:
+        case 8:
+        case 16:
+            {
+                param def = {PARAM_11BIT, id, "  PW"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 2:
+        case 9:
+        case 17:
             {
                 param def = {PARAM_4BIT, id, "  Att"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
-        case 2:
-        case 7:
-        case 12:
+        case 3:
+        case 10:
+        case 18:
             {
                 param def = {PARAM_4BIT, id, "  Dec"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
-        case 3:
-        case 8:
-        case 13:
+        case 4:
+        case 11:
+        case 19:
             {
                 param def = {PARAM_4BIT, id, "  Sus"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
-        case 4:
-        case 9:
-        case 14:
+        case 5:
+        case 12:
+        case 20:
             {
                 param def = {PARAM_4BIT, id, "  Rel"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
-        case 15:
+        case 6:
+        case 13:
+        case 21:
+            {
+                // Filter bypass, maybe later.
+                param def = {PARAM_UNAVAIL, id, "  Filt"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 14:
+        case 22:
+            {
+                // Detune, maybe later.
+                param def = {PARAM_UNAVAIL, id, "  tune"};
+                def.name[0] = osc;
+                return copyParam(&def, pParam);
+            }
+        case 23:
             {
                 // Filter Cutoff in HZ
                 param def = {PARAM_11BIT, id, "Cutoff"};
                 return copyParam(&def, pParam);
             }
-        case 16:
+        case 24:
             {
                 param def = {PARAM_4BIT, id, "Reso"};
                 return copyParam(&def, pParam);
             }
-        case 17:
-            {
-                 // Filter bypass, maybe later.
-                param def = {PARAM_UNAVAIL, id, "Bypass"};
-                return copyParam(&def, pParam);
-            }
-        case 18:
+        case 25:
             {
                 param def = {PARAM_LABEL | (4 << 1), id, "Mode"};
                 return copyParam(&def, pParam);
             }
-        case 19:
+        case 26:
             {
                 param def = {PARAM_4BIT, id, "Volume"};
                 return copyParam(&def, pParam);
@@ -514,7 +533,7 @@ void updatePerformance(livePatch *p) {
         midiNotePlayed = false;
         
         // Control registers
-        patchToRegisters(p);
+        //patchToRegisters(p);
         if (midiOn[2] > 0) {
             uint32_t note = octave[midiOn[1] % 12];
             int shift = (7 - (midiOn[1] / 12));

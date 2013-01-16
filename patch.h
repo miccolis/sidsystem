@@ -44,6 +44,8 @@ struct patchSettings {
 
     // General: 26
     int volume;     // nibble
+    // portamento
+    // retrigger
 
     // System
     int id;
@@ -138,102 +140,158 @@ int loadPatchValue(int param, livePatch *p) {
     return *v;
 }
 
-void setPatchValue(int param, livePatch *p, int val) {
-    int *v = loadPatchValuePtr(param, p);
-    *v = val;
+void patchUpdateRegister(livePatch *p, int param) {
+    // TODO support pulseWidth, detune, bypass
+    switch(param) {
+        // 0/1: Osc A: frequency (midi)
+    case 0:
+        //  Osc A: Control Register
+        //
+        // 0000 0001 (1) - Gate (midi)
+        // 0000 0010 (2) - Sync
+        // 0000 0100 (4) - Ring mod
+        // 0000 1000 (8) - Test (not used)
+        // 0001 0000 (16) - Triangle
+        // 0010 0000 (32) - Saw
+        // 0100 0000 (64) - Square
+        // 1000 0000 (128) - Noise
+        switch (p->patch.waveOscA) {
+            case 0: p->registers[4] = 0x10; break;
+            case 1: p->registers[4] = 0x20; break;
+            case 2: p->registers[4] = 0x40; break;
+            case 3: p->registers[4] = 0x4; break;
+            case 4: p->registers[4] = 0x2; break;
+            case 5: p->registers[4] = 0x80; break;
+        }
+        break;
+    case 1:
+        // Osc A: pulse width (setting to 2048 for now)
+        p->registers[2] = 0;
+        p->registers[4] = 8;
+        break;
+    case 2:
+    case 3:
+        // Osc A: Attack, Decay
+        p->registers[5] = (p->patch.attackOscA << 4) + p->patch.decayOscA;
+        break;
+    case 4:
+    case 5:
+        // Osc A: Sustain, Release
+        p->registers[6] = (p->patch.sustainOscA << 4) + p->patch.releaseOscA;
+        break;
+    case 6:
+        // Osc A: Filter enable
+        break;
+
+        // 7/8: Osc B: frequency (midi)
+    case 7:
+        // Osc B: Control Register
+        switch (p->patch.waveOscB) {
+            case 0: p->registers[11] = 0x10; break;
+            case 1: p->registers[11] = 0x20; break;
+            case 2: p->registers[11] = 0x40; break;
+            case 3: p->registers[11] = 0x4; break;
+            case 4: p->registers[11] = 0x2; break;
+            case 5: p->registers[11] = 0x80; break;
+        }
+        break;
+    case 8:
+        // Osc B: pulse width (setting to 2048 for now)
+        p->registers[9] = 0;
+        p->registers[10] = 8;
+        break;
+    case 9:
+    case 10:
+        // Osc B: Attack, Decay
+        p->registers[12] = (p->patch.attackOscB << 4) + p->patch.decayOscB;
+        break;
+    case 11:
+    case 12:
+        // Osc B: Sustain, Release
+        p->registers[13] = (p->patch.sustainOscB << 4) + p->patch.releaseOscB;
+        break;
+    case 13:
+        // Osc B: Filter enable
+        break;
+    case 14:
+        // Osc B: Detune
+        break;
+
+        // 14/15: Osc C: frequency (midi)
+    case 15:
+        // Osc C: Control Register
+        switch (p->patch.waveOscC) {
+            case 0: p->registers[18] = 0x10; break;
+            case 1: p->registers[18] = 0x20; break;
+            case 2: p->registers[18] = 0x40; break;
+            case 3: p->registers[18] = 0x4; break;
+            case 4: p->registers[18] = 0x2; break;
+            case 5: p->registers[18] = 0x80; break;
+        }
+        break;
+    case 16:
+        // Osc C: pulse width (setting to 2048 for now)
+        p->registers[16] = 0;
+        p->registers[17] = 8;
+        break;
+    case 17:
+    case 18:
+        // Osc C: Attack, Decay
+        p->registers[19] = (p->patch.attackOscC << 4) + p->patch.decayOscC;
+        break;
+    case 19:
+    case 20:
+        // Osc C: Sustain, Release
+        p->registers[20] = (p->patch.sustainOscC << 4) + p->patch.releaseOscC;
+        break;
+    case 21:
+        // Osc C: Filter enable
+        break;
+    case 22:
+        // Osc C: Detune
+        break;
+
+    case 23:
+        // Filter frequency (11 bits)
+        p->registers[21] = p->patch.cutoff & 0x7; // 0000 0111
+        p->registers[22] = p->patch.cutoff >> 3;
+        break;
+    case 24:
+        // Resonance, Routing
+        p->registers[23] = p->patch.resonance << 4;
+        // 0100 - OSC C
+        // 0010 - OSC B
+        // 0001 - OSC A
+        p->registers[23] |= 0x7; // 0111
+        break;
+    case 25:
+    case 26:
+        // Mode / Vol
+        // 0001 0000 (0x10) - lowpass
+        // 0010 0000 (0x40) - bandpass
+        // 0100 0000 (0x20) - highpass
+        // 0101 0000 (0x50) - notch
+        switch (p->patch.mode) {
+            case 0: p->registers[24] = 0x10; break;
+            case 1: p->registers[24] = 0x40; break;
+            case 2: p->registers[24] = 0x20; break;
+            case 3: p->registers[24] = 0x50; break;
+        }
+        break;
+    }
 }
 
 void patchToRegisters(livePatch *p) {
-    // TODO support pulseWidth, detune, bypass
-
-    // 0/1: Osc A: frequency (midi)
-    // Osc A: pulse width (setting to 2048 for now)
-    p->registers[2] = 0;
-    p->registers[4] = 8;
-    //  Osc A: Control Register
-    //
-    // 0000 0001 (1) - Gate (midi)
-    // 0000 0010 (2) - Sync
-    // 0000 0100 (4) - Ring mod
-    // 0000 1000 (8) - Test (not used)
-    // 0001 0000 (16) - Triangle
-    // 0010 0000 (32) - Saw
-    // 0100 0000 (64) - Square
-    // 1000 0000 (128) - Noise
-    switch (p->patch.waveOscA) {
-        case 0: p->registers[4] = 0x10; break;
-        case 1: p->registers[4] = 0x20; break;
-        case 2: p->registers[4] = 0x40; break;
-        case 3: p->registers[4] = 0x4; break;
-        case 4: p->registers[4] = 0x2; break;
-        case 5: p->registers[4] = 0x80; break;
+    for (int i = 0; i < 27; i++) {
+        patchUpdateRegister(p, i);
     }
-    // Osc A: Attack, Decay
-    p->registers[5] = (p->patch.attackOscA << 4) + p->patch.decayOscA;
-    // Osc A: Sustain, Release
-    p->registers[6] = (p->patch.sustainOscA << 4) + p->patch.releaseOscA;
+}
 
-    // 7/8: Osc B: frequency (midi)
-    // Osc B: pulse width (setting to 2048 for now)
-    p->registers[9] = 0;
-    p->registers[10] = 8;
-
-    // Osc B: Control Register
-    switch (p->patch.waveOscB) {
-        case 0: p->registers[11] = 0x10; break;
-        case 1: p->registers[11] = 0x20; break;
-        case 2: p->registers[11] = 0x40; break;
-        case 3: p->registers[11] = 0x4; break;
-        case 4: p->registers[11] = 0x2; break;
-        case 5: p->registers[11] = 0x80; break;
-    }
-    // Osc B: Attack, Decay
-    p->registers[12] = (p->patch.attackOscB << 4) + p->patch.decayOscB;
-    // Osc B: Sustain, Release
-    p->registers[13] = (p->patch.sustainOscB << 4) + p->patch.releaseOscB;
-
-    // 14/15: Osc C: frequency (midi)
-    // Osc C: pulse width (setting to 2048 for now)
-    p->registers[16] = 0;
-    p->registers[17] = 8;
-
-    // Osc C: Control Register
-    switch (p->patch.waveOscC) {
-        case 0: p->registers[18] = 0x10; break;
-        case 1: p->registers[18] = 0x20; break;
-        case 2: p->registers[18] = 0x40; break;
-        case 3: p->registers[18] = 0x4; break;
-        case 4: p->registers[18] = 0x2; break;
-        case 5: p->registers[18] = 0x80; break;
-    }
-    // Osc C: Attack, Decay
-    p->registers[19] = (p->patch.attackOscC << 4) + p->patch.decayOscC;
-    // Osc C: Sustain, Release
-    p->registers[20] = (p->patch.sustainOscC << 4) + p->patch.releaseOscC;
-
-    // Filter frequency (11 bits)
-    int ffreq = p->patch.cutoff;
-    p->registers[21] = ffreq & 0x7; // 0000 0111
-    p->registers[22] = ffreq >> 3;
-
-    // Resonance, Routing
-    p->registers[23] = p->patch.resonance << 4;
-    // 0100 - OSC C
-    // 0010 - OSC B
-    // 0001 - OSC A
-    p->registers[23] |= 0x7; // 0111
-
-    // Mode / Vol
-    // 0001 0000 (0x10) - lowpass
-    // 0010 0000 (0x40) - bandpass
-    // 0100 0000 (0x20) - highpass
-    // 0101 0000 (0x50) - notch
-    switch (p->patch.mode) {
-        case 0: p->registers[24] = 0x10; break;
-        case 1: p->registers[24] = 0x40; break;
-        case 2: p->registers[24] = 0x20; break;
-        case 3: p->registers[24] = 0x50; break;
-    }
+// Update the setting, and the register value.
+void setPatchValue(int param, livePatch *p, int val) {
+    int *v = loadPatchValuePtr(param, p);
+    *v = val;
+    patchUpdateRegister(p, param);
 }
 
 bool copyPatch(patchSettings *pSrc, livePatch *pDest) {
