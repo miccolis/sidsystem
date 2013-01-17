@@ -257,7 +257,7 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
         }
         else {
             *pValue = encoderVal;
-            updatePerfParam(pParam, pPatch, *pValue);
+            updatePerfParam(pPatch, pParam->id, *pValue);
         }
     }
     return true;
@@ -577,15 +577,15 @@ void updatePerformance(livePatch *p) {
                 param target;
                 loadParam(i, &target);
                 int v = (float)midiCC[2] / 127 * (float)(target.type >> 1);
-                updatePerfParam(&target, p, v);
+                updatePerfParam(p, target.id, v);
             }
         }
     }
 }
 
-void updatePerfParam(param *pParam, livePatch *pPatch, int val) {
-    setPatchValue(pParam->id, pPatch, val);
-    int loc = patchParamRegister(pParam->id);
+void updatePerfParam(livePatch *pPatch, int param, int val) {
+    setPatchValue(pPatch, param, val);
+    int loc = patchParamRegister(param);
     writeSR(pPatch, loc & 0xFF);
     if (loc & 0xFF00) {
         loc = loc >> 8;

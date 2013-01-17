@@ -59,6 +59,7 @@ struct livePatch {
 
 // Returns two bytes, one register value in each.
 uint16_t patchParamRegister(int param) {
+    // TODO combine with setPatchValue?
     switch (param) {
         // OSC A
         case 0: return 4;           // Waveform
@@ -288,7 +289,7 @@ void patchToRegisters(livePatch *p) {
 }
 
 // Update the setting, and the register value.
-void setPatchValue(int param, livePatch *p, int val) {
+void setPatchValue(livePatch *p, int param, int val) {
     int *v = loadPatchValuePtr(param, p);
     *v = val;
     patchUpdateRegister(p, param);
