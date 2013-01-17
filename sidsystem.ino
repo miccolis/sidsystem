@@ -89,7 +89,7 @@ uint8_t midiOn[3];
 uint8_t midiCC[3];
 bool midiNotePlayed = false;
 bool midiControlPlayed = false;
-uint8_t midiAssignments[20];
+uint8_t midiAssignments[120];
 
 void setup() {
 
@@ -116,6 +116,7 @@ void setup() {
     pinMode(sid_cs, OUTPUT);
     digitalWrite(sid_cs, HIGH);
 
+    for (int i; i < 120; i++) midiAssignments[i] = 0xFF;
     MIDI.begin();
     MIDI.setHandleNoteOn(HandleNoteOn);
     MIDI.setHandleControlChange(HandleControlChange);
@@ -248,7 +249,7 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
             encoderVal = pParam->id;
         }
         else if (update & 2) {
-            midiAssignments[pParam->id] = midiCC[1];
+            midiAssignments[midiCC[1]] = pParam->id;
             lcd.clear();
             lcd.print("Assigned CC");
             lcd.setCursor(0,1);
@@ -572,13 +573,11 @@ void updatePerformance(livePatch *p) {
 
     if (midiControlPlayed) {
         midiControlPlayed = false;
-        for (int i = 0; i < 20; i++) {
-            if (midiAssignments[i] == midiCC[1]) {
-                param target;
-                loadParam(i, &target);
-                int v = (float)midiCC[2] / 127 * (float)(target.type >> 1);
-                updatePerfParam(p, target.id, v);
-            }
+        if (midiAssignments[midiCC[1]] != 0xFF) {
+            param target;
+            loadParam(midiAssignments[midiCC[1]], &target);
+            int v = (float)midiCC[2] / 127 * (float)(target.type >> 1);
+            updatePerfParam(p, target.id, v);
         }
     }
 }
