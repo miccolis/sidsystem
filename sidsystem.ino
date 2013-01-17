@@ -555,10 +555,9 @@ void updatePerformance(livePatch *p) {
                 if (lastNote) {
                     p->registers[controlReg[i]] &= 0xFE;
                     writeSR(p, controlReg[i]);
-                } else {
-                    p->registers[controlReg[i]] |= 0x1;
-                    writeSR(p, controlReg[i]);
                 }
+                p->registers[controlReg[i]] |= 0x1;
+                writeSR(p, controlReg[i]);
             }
             lastNote = midiOn[1] | 0x80;
         }
