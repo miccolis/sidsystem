@@ -166,9 +166,9 @@ void patchUpdateRegister(livePatch *p, int param) {
         }
         break;
     case 1:
-        // Osc A: pulse width (setting to 2048 for now)
-        p->registers[2] = 0;
-        p->registers[4] = 8;
+        // Osc A: pulse width
+        p->registers[2] = p->patch.pulseWidthOscA & 0xFF;
+        p->registers[3] = p->patch.pulseWidthOscA >> 8;
         break;
     case 2:
     case 3:
@@ -197,9 +197,9 @@ void patchUpdateRegister(livePatch *p, int param) {
         }
         break;
     case 8:
-        // Osc B: pulse width (setting to 2048 for now)
-        p->registers[9] = 0;
-        p->registers[10] = 8;
+        // Osc B: pulse width
+        p->registers[9] = p->patch.pulseWidthOscB & 0xFF;
+        p->registers[10] = p->patch.pulseWidthOscB >> 8;
         break;
     case 9:
     case 10:
@@ -232,8 +232,8 @@ void patchUpdateRegister(livePatch *p, int param) {
         break;
     case 16:
         // Osc C: pulse width (setting to 2048 for now)
-        p->registers[16] = 0;
-        p->registers[17] = 8;
+        p->registers[16] = p->patch.pulseWidthOscC & 0xFF;
+        p->registers[17] = p->patch.pulseWidthOscC >> 8;
         break;
     case 17:
     case 18:
