@@ -58,6 +58,8 @@ SID
 #include "param.h"
 #include "MIDI.h"
 
+#define NO_PARAM 0xFF
+
 LiquidCrystal lcd(A5, A4, 7, 6, 5, 4);
 const int enc_a = 2;
 const int enc_b = 3;
@@ -136,23 +138,23 @@ void setup() {
 }
 
 void loop() {
-    static int activePage = menu_start; // "page" see "menu_x" constants.
-    static livePatch activePatch;       // Active program (ie being played & edited)
-    static param activeParam;           // Active parameter (ie being edited)
-    static int menuValue = 0;           // Value of parameter.
+    static int page = menu_start; // "page" see "menu_x" constants.
+    static livePatch patch;       // Active program (ie being played & edited)
+    static param parameter;       // Active parameter (ie being edited)
+    static int value = 0;         // Value of parameter.
 
-    if (activePage == menu_start) {
-        activePage = menu_patch;
-        loadPatch(0, &activePatch);
-        updateSynth(&activePatch);
+    if (page == menu_start) {
+        page = menu_patch;
+        loadPatch(0, &patch);
+        updateSynth(&patch);
     }
 
     MIDI.read();
-    updatePerformance(&activePatch);
+    uint8_t paramUpdate = updatePerformance(&patch);
 
-    int update = pollButtons();
-    if (updateState(&activePage, &activePatch, &activeParam, &menuValue, update))
-        updateMenu(&activePage, &activePatch, &activeParam, &menuValue);
+    int inputUpdate = pollButtons();
+    if (updateState(&page, &patch, &parameter, &value, inputUpdate, paramUpdate))
+        updateMenu(&page, &patch, &parameter, &value);
 }
 
 // MIDI Callbacks
@@ -204,11 +206,14 @@ int pollButtons() {
 
 // Update system state based on input. Responsible for validation.
 // Return true if menu should be updated.
-bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update) {
+bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update, uint8_t playedParam) {
     static int curEncoderVal = -1;
 
+    // Early condition checks:
+    // 1. If the encoder has changed, we proceed
     if (curEncoderVal != encoderVal) curEncoderVal = encoderVal;
-    else if (update == 0) return false;
+    // 2. If there aren't input updates, nor CC messages, we bail.
+    else if (update == 0 && playedParam == NO_PARAM) return false;
 
     if (*pPage == menu_patch) {
         // Input validation is rough now, but we only have 4 programs
@@ -224,6 +229,7 @@ bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int 
         else {
             *pValue = encoderVal;
         }
+        return true;
     }
     else if (*pPage == menu_param) {
         if (encoderVal < -1) { encoderVal = -1; return true; }
@@ -240,30 +246,53 @@ bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int 
             *pPage = menu_patch;
             encoderVal = pPatch->patch.id;
         }
+        return true;
     }
     else if (*pPage == menu_value) {
-        int limit = paramLimit(pParam);
-        if (encoderVal < 0) { encoderVal = 0; return true; }
-        if (encoderVal > limit ) { encoderVal = limit; return true; }
+        if (playedParam != NO_PARAM) {
+            // If we're responding to a CC, update the UI if it's the visible
+            // one, and back out of it.
+            if (playedParam == pParam->id) {
+                *pPage = menu_param;
+                encoderVal = pParam->id;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
 
+        // Respond to inputs.
         if (update & 1) {
+            // Backout to parameter selection
             *pPage = menu_param;
             encoderVal = pParam->id;
+            return true;
         }
         else if (update & 2) {
+            // Update midi mapping...
             midiAssignments[midiCC[1]] = pParam->id;
             lcd.clear();
             lcd.print("Assigned CC");
             lcd.setCursor(0,1);
             lcd.print(midiCC[1]);
             delay(1000);
+            // ...and backout.
+            *pPage = menu_param;
+            encoderVal = pParam->id;
+            return true;
         }
+
+        // Handle encoder.
+        int limit = paramLimit(pParam);
+        if (encoderVal < 0) encoderVal = 0;
+        else if (encoderVal > limit ) encoderVal = limit;
         else {
             *pValue = encoderVal;
             updatePerfParam(pPatch, pParam->id, *pValue);
         }
+        return true;
     }
-    return true;
 }
 
 // Update the GUI based on system state change.
@@ -519,7 +548,8 @@ void updateSynth(livePatch *p) {
     }
 }
 
-void updatePerformance(livePatch *p) {
+// Return NO_PARAM or the parameter id played.
+uint8_t updatePerformance(livePatch *p) {
     // Values for C7 through B7.
     // B7, G7 & G#7 intentionally differ from the hex values in the data sheet
     static uint32_t octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
@@ -574,13 +604,15 @@ void updatePerformance(livePatch *p) {
 
     if (midiControlPlayed) {
         midiControlPlayed = false;
-        if (midiAssignments[midiCC[1]] != 0xFF) {
+        if (midiAssignments[midiCC[1]] != NO_PARAM) {
             param target;
             loadParam(midiAssignments[midiCC[1]], &target);
             int v = (float)midiCC[2] / 127 * (float)(paramLimit(&target));
             updatePerfParam(p, target.id, v);
+            return target.id;
         }
     }
+    return NO_PARAM;
 }
 
 void updatePerfParam(livePatch *pPatch, int param, int val) {
