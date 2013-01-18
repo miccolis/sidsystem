@@ -203,7 +203,8 @@ int pollButtons() {
 }
 
 // Update system state based on input. Responsible for validation.
-boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update) {
+// Return true if menu should be updated.
+bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update) {
     static int curEncoderVal = -1;
 
     if (curEncoderVal != encoderVal) curEncoderVal = encoderVal;
@@ -241,9 +242,10 @@ boolean updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, i
         }
     }
     else if (*pPage == menu_value) {
-        int limit = pParam->type >> 1;
+        int limit = paramLimit(pParam);
         if (encoderVal < 0) { encoderVal = 0; return true; }
-        if (encoderVal >= limit ) { encoderVal = (limit - 1); return true; }
+        if (encoderVal > limit ) { encoderVal = limit; return true; }
+
         if (update & 1) {
             *pPage = menu_param;
             encoderVal = pParam->id;
@@ -342,7 +344,7 @@ boolean loadParam(int id, param *pParam) {
         case 7:
         case 15:
             {
-                param def = {PARAM_LABEL | (6 << 1), id, "  Wave"};
+                param def = {PARAM_LABEL | 6 , id, "  Wave"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
@@ -416,7 +418,7 @@ boolean loadParam(int id, param *pParam) {
             }
         case 25:
             {
-                param def = {PARAM_LABEL | (4 << 1), id, "Mode"};
+                param def = {PARAM_LABEL | 4, id, "Mode"};
                 return copyParam(&def, pParam);
             }
         case 26:
@@ -444,10 +446,10 @@ bool loadPatch(int id, livePatch *pProg) {
 bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
     if (id == 0) {
         patchSettings factory = {
-            0, 0, 2, 0, 8, 2, 1,
-            0, 0, 2, 0, 8, 2, 1, 0,
-            0, 0, 2, 0, 8, 2, 1, 0,
-            1024, 0, 0, 0,
+            0, 0, 8, 0, 8, 2, 1,
+            0, 0, 8, 0, 8, 2, 1, 0,
+            0, 0, 8, 0, 8, 2, 1, 0,
+            200, 0, 1, 0,
             id, "Bleep",
         };
         return copyPatch(&factory, pProg);
@@ -575,7 +577,7 @@ void updatePerformance(livePatch *p) {
         if (midiAssignments[midiCC[1]] != 0xFF) {
             param target;
             loadParam(midiAssignments[midiCC[1]], &target);
-            int v = (float)midiCC[2] / 127 * (float)(target.type >> 1);
+            int v = (float)midiCC[2] / 127 * (float)(paramLimit(&target));
             updatePerfParam(p, target.id, v);
         }
     }
