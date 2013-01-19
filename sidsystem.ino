@@ -548,13 +548,38 @@ void updateSynth(livePatch *p) {
     }
 }
 
-// Return NO_PARAM or the parameter id played.
-uint8_t updatePerformance(livePatch *p) {
+void noteToRegisters(livePatch *p, int played, char osc) {
+    // Set the livePatch active note (this method needs a better name)
+    p->note = played;
+
     // Values for C7 through B7.
     // B7, G7 & G#7 intentionally differ from the hex values in the data sheet
     static uint32_t octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
         0xCD85, 0xD9BD, 0xE6B0, 0xF467, 0x102F0};
 
+    uint32_t note = octave[played % 12];
+    int shift = (7 - (played / 12));
+    note = note >> shift;
+    uint8_t freqLo = note & 0xFF;
+    uint8_t freqHi = note >> 8;
+
+    // 'u' is for unison! ...and updates all registers.
+    if (osc == 'u' || osc == 'a') {
+        p->registers[0] = freqLo;
+        p->registers[1] = freqHi;
+    }
+    if (osc == 'u' || osc == 'b') {
+        p->registers[7] = freqLo;
+        p->registers[8] = freqHi;
+    }
+    if (osc == 'u' || osc == 'c') {
+        p->registers[14] = freqLo;
+        p->registers[15] = freqHi;
+    }
+}
+
+// Return NO_PARAM or the parameter id played.
+uint8_t updatePerformance(livePatch *p) {
     // Control registers.
     static uint8_t controlReg[3] = {4, 11, 18};
     // Frequency registers
@@ -568,15 +593,10 @@ uint8_t updatePerformance(livePatch *p) {
         // Control registers
         //patchToRegisters(p);
         if (midiOn[2] > 0) {
-            uint32_t note = octave[midiOn[1] % 12];
-            int shift = (7 - (midiOn[1] / 12));
-            note = note >> shift;
-            uint8_t freqLo = note & 0xFF;
-            uint8_t freqHi = note >> 8;
-
+            noteToRegisters(p, midiOn[1], 'u');
             for (int i = 0; i < 3; i++) {
-                writeSidRegister(freqReg[i][0], freqLo);
-                writeSidRegister(freqReg[i][1], freqHi);
+                writeSR(p, freqReg[i][0]);
+                writeSR(p, freqReg[i][1]);
             }
 
             // Volume

@@ -55,6 +55,7 @@ struct patchSettings {
 struct livePatch {
     uint8_t registers[25];
     patchSettings patch;
+    int note;
 };
 
 // Returns two bytes, one register value in each.
