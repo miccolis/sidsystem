@@ -381,7 +381,7 @@ boolean loadParam(int id, param *pParam) {
         case 8:
         case 16:
             {
-                param def = {PARAM_11BIT, id, "  PW"};
+                param def = {PARAM_12BIT, id, "  PW"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
@@ -485,9 +485,9 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
     }
     else if (id == 1) {
         patchSettings factory = {
-            2, 0, 12, 12, 15, 0, 1,
-            2, 0, 12, 12, 15, 0, 1, 0,
-            2, 0, 12, 12, 15, 0, 1, 0,
+            2, 2048, 12, 12, 15, 0, 1,
+            2, 2048, 12, 12, 15, 0, 1, 0,
+            2, 2048, 12, 12, 15, 0, 1, 0,
             2000, 8, 0, 0,
             id, "Spacey",
         };
@@ -496,7 +496,7 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
     else if (id == 2) {
         patchSettings factory = {
             1, 0, 1, 1, 4, 1, 1, 
-            2, 0, 2, 4, 4, 2, 1, 0,
+            2, 2048, 2, 4, 4, 2, 1, 0,
             3, 0, 3, 4, 4, 3, 1, 0,
             2047, 0, 0, 4,
             id, "Belong",
@@ -505,9 +505,9 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
     }
     else if (id == 3) {
         patchSettings factory = {
-            2, 0, 0, 8, 0, 0, 1,
-            2, 0, 0, 8, 0, 0, 1, 0,
-            2, 0, 0, 8, 0, 0, 1, 0,
+            2, 2048, 0, 8, 0, 0, 1,
+            2, 2048, 0, 8, 0, 0, 1, 0,
+            2, 2048, 0, 8, 0, 0, 1, 0,
             1024, 0, 0, 0,
             id, "Disaste",
         };

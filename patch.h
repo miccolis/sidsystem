@@ -10,7 +10,7 @@ struct patchSettings {
     // Oscillators
     // A: 0-6
     int waveOscA;    // 0 - 6
-    int pulseWidthOscA;
+    int pulseWidthOscA; // 12-bit
     int attackOscA;  // nibble
     int decayOscA;   // nibble
     int sustainOscA; // nibble

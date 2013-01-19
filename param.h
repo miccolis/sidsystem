@@ -9,6 +9,7 @@
 #define PARAM_LMASK 0x7FFF // Label mask.
 #define PARAM_4BIT 16
 #define PARAM_11BIT 2048
+#define PARAM_12BIT 4096
 
 struct param {
     uint16_t type;
