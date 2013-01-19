@@ -59,7 +59,7 @@ SID
 #include "param.h"
 #include "MIDI.h"
 
-#define PROGRAMS_AVAILABE 4
+#define PROGRAMS_AVAILABLE 5
 #define NO_PARAM 0xFF
 
 LiquidCrystal lcd(A5, A4, 7, 6, 5, 4);
@@ -220,7 +220,7 @@ bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int 
     if (*pPage == menu_patch) {
         // Input validation is rough now, but we only have 4 programs
         if (encoderVal < 0) { encoderVal = 0; return true; }
-        if (encoderVal > PROGRAMS_AVAILABE) { encoderVal = PROGRAMS_AVAILABE; return true; }
+        if (encoderVal > PROGRAMS_AVAILABLE) { encoderVal = PROGRAMS_AVAILABLE; return true; }
         if (update & 1) {
             loadPatch(encoderVal, pPatch);
             updateSynth(pPatch);
@@ -529,6 +529,16 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
             1, 0, 0, 15, 14, 5, 1, 8,
             1024, 4, 0, 0,
             id, "Sawbass",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 5) {
+        patchSettings factory = {
+            4, 0, 8, 0, 14, 2, 1,
+            0, 0, 8, 0, 14, 2, 1, 0,
+            0, 0, 0, 0, 0, 0, 1, 50,
+            200, 4, 1, 0,
+            id, "Bowser",
         };
         return copyPatch(&factory, pProg);
     }
