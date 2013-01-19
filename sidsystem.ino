@@ -348,6 +348,13 @@ boolean loadParamOption(param *pParam, int idx, char *pStr) {
             else if (idx == 5) setString("Noise", pStr, PARAMNAME_LEN);
             else return false;
             return true;
+        case 6:
+        case 13:
+        case 21:
+            if (idx == 0) setString("Off", pStr, PARAMNAME_LEN);
+            else if (idx == 1) setString("On", pStr, PARAMNAME_LEN);
+            else return false;
+            return true;
         case 25:
             // Filter mode
             if      (idx == 0) setString("Low Pass", pStr, PARAMNAME_LEN);
@@ -423,8 +430,7 @@ boolean loadParam(int id, param *pParam) {
         case 13:
         case 21:
             {
-                // Filter bypass, maybe later.
-                param def = {PARAM_UNAVAIL, id, "  Filt"};
+                param def = {PARAM_LABEL | PARAM_1BIT, id, "  Filt"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }

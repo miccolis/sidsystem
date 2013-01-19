@@ -68,7 +68,7 @@ uint16_t patchParamRegister(int param) {
         case 2: return 5;           // Attack
         case 3: return 5;           // Decay
         case 4: return 6;           // Sustain
-        case 5: return 6;           // Releasea
+        case 5: return 6;           // Release
         case 6: return 23;          // Filter enable
 
         // OSC B
@@ -183,6 +183,8 @@ void patchUpdateRegister(livePatch *p, int param) {
         break;
     case 6:
         // Osc A: Filter enable
+        if (p->patch.filterOscA == 1) p->registers[23] |=  0x1;
+        else p->registers[23] &=  0xFE;
         break;
 
         // 7/8: Osc B: frequency (midi)
@@ -214,6 +216,8 @@ void patchUpdateRegister(livePatch *p, int param) {
         break;
     case 13:
         // Osc B: Filter enable
+        if (p->patch.filterOscB == 1) p->registers[23] |=  0x2;
+        else p->registers[23] &=  0xFD;
         break;
     case 14:
         // Osc B: Detune
@@ -248,9 +252,13 @@ void patchUpdateRegister(livePatch *p, int param) {
         break;
     case 21:
         // Osc C: Filter enable
+        if (p->patch.filterOscC == 1) p->registers[23] |=  0x2;
+        else p->registers[23] &=  0xFD;
         break;
     case 22:
         // Osc C: Detune
+        if (p->patch.filterOscC == 1) p->registers[23] |=  0x4;
+        else p->registers[23] &=  0xFB;
         break;
 
     case 23:
