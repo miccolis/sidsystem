@@ -569,10 +569,8 @@ void noteToRegisters(livePatch *p, char osc) {
     int shift = (7 - (p->note / 12));
     note = note >> shift;
 
-    lcd.clear();
     // 'u' is for unison! ...and updates all registers.
     if (osc == 'u' || osc == 'a') {
-        lcd.print(note);
         // Currently no detune for osc a
         p->registers[0] = note & 0xFF;
         p->registers[1] = note >> 8;
@@ -582,8 +580,6 @@ void noteToRegisters(livePatch *p, char osc) {
         if (p->patch.detuneOscB){
             n = n * pow(2, (float)p->patch.detuneOscB / 120);
         }
-        lcd.print(':');
-        lcd.print(n);
         p->registers[7] = n & 0xFF;
         p->registers[8] = n >> 8;
     }
@@ -592,8 +588,6 @@ void noteToRegisters(livePatch *p, char osc) {
         if (p->patch.detuneOscC) {
             n = n * pow(2, (float)p->patch.detuneOscC / 120);
         }
-        lcd.print(':');
-        lcd.print(n);
         p->registers[14] = n & 0xFF;
         p->registers[15] = n >> 8;
     }
@@ -658,12 +652,11 @@ uint8_t updatePerformance(livePatch *p) {
 }
 
 void updatePerfParam(livePatch *pPatch, int param, int val) {
+    setPatchValue(pPatch, param, val);
     if (param == 14 || param == 22) {
-        // Detune is a special case.
+        // Detune is a special case for now, should be able to move noteToRegisters
+        // and this logic over to patch.h 
         noteToRegisters(pPatch, param == 14 ? 'b' : 'c');
-    }
-    else {
-        setPatchValue(pPatch, param, val);
     }
     int loc = patchParamRegister(param);
     writeSR(pPatch, loc & 0xFF);
