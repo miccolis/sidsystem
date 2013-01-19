@@ -151,7 +151,7 @@ void patchUpdateRegister(livePatch *p, int param) {
         //
         // 0000 0001 (1) - Gate (midi)
         // 0000 0010 (2) - Sync
-        // 0000 0100 (4) - Ring mod
+        // 0000 0100 (4) - Ring mod (always with triangle, ie 0x14
         // 0000 1000 (8) - Test (not used)
         // 0001 0000 (16) - Triangle
         // 0010 0000 (32) - Saw
@@ -161,9 +161,11 @@ void patchUpdateRegister(livePatch *p, int param) {
             case 0: p->registers[4] = 0x10; break;
             case 1: p->registers[4] = 0x20; break;
             case 2: p->registers[4] = 0x40; break;
-            case 3: p->registers[4] = 0x4; break;
-            case 4: p->registers[4] = 0x2; break;
-            case 5: p->registers[4] = 0x80; break;
+            case 3: p->registers[4] = 0x14; break;
+            case 4: p->registers[4] = 0x12; break;
+            case 5: p->registers[4] = 0x22; break;
+            case 6: p->registers[4] = 0x42; break;
+            case 7: p->registers[4] = 0x80; break;
         }
         break;
     case 1:
@@ -194,9 +196,11 @@ void patchUpdateRegister(livePatch *p, int param) {
             case 0: p->registers[11] = 0x10; break;
             case 1: p->registers[11] = 0x20; break;
             case 2: p->registers[11] = 0x40; break;
-            case 3: p->registers[11] = 0x4; break;
-            case 4: p->registers[11] = 0x2; break;
-            case 5: p->registers[11] = 0x80; break;
+            case 3: p->registers[11] = 0x14; break;
+            case 4: p->registers[11] = 0x12; break;
+            case 5: p->registers[11] = 0x22; break;
+            case 6: p->registers[11] = 0x42; break;
+            case 7: p->registers[11] = 0x80; break;
         }
         break;
     case 8:
@@ -230,9 +234,11 @@ void patchUpdateRegister(livePatch *p, int param) {
             case 0: p->registers[18] = 0x10; break;
             case 1: p->registers[18] = 0x20; break;
             case 2: p->registers[18] = 0x40; break;
-            case 3: p->registers[18] = 0x4; break;
-            case 4: p->registers[18] = 0x2; break;
-            case 5: p->registers[18] = 0x80; break;
+            case 3: p->registers[18] = 0x14; break;
+            case 4: p->registers[18] = 0x12; break;
+            case 5: p->registers[18] = 0x22; break;
+            case 6: p->registers[18] = 0x42; break;
+            case 7: p->registers[18] = 0x80; break;
         }
         break;
     case 16:

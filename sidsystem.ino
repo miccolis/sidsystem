@@ -344,8 +344,10 @@ boolean loadParamOption(param *pParam, int idx, char *pStr) {
             else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
             else if (idx == 2) setString("Pulse", pStr, PARAMNAME_LEN);
             else if (idx == 3) setString("Ring mod", pStr, PARAMNAME_LEN);
-            else if (idx == 4) setString("Sync", pStr, PARAMNAME_LEN);
-            else if (idx == 5) setString("Noise", pStr, PARAMNAME_LEN);
+            else if (idx == 4) setString("Sync Tri", pStr, PARAMNAME_LEN);
+            else if (idx == 5) setString("Sync Saw", pStr, PARAMNAME_LEN);
+            else if (idx == 6) setString("Sync Pul", pStr, PARAMNAME_LEN);
+            else if (idx == 7) setString("Noise", pStr, PARAMNAME_LEN);
             else return false;
             return true;
         case 6:
@@ -382,7 +384,7 @@ boolean loadParam(int id, param *pParam) {
         case 7:
         case 15:
             {
-                param def = {PARAM_LABEL | 6 , id, "  Wave"};
+                param def = {PARAM_LABEL | 8 , id, "  Wave"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
