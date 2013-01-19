@@ -257,8 +257,6 @@ void patchUpdateRegister(livePatch *p, int param) {
         break;
     case 22:
         // Osc C: Detune
-        if (p->patch.filterOscC == 1) p->registers[23] |=  0x4;
-        else p->registers[23] &=  0xFB;
         break;
 
     case 23:
