@@ -10,6 +10,7 @@
 #define PARAM_4BIT 16
 #define PARAM_11BIT 2048
 #define PARAM_12BIT 4096
+#define PARAM_DETUNE 240 // two octaves in 10 cent steps.
 
 struct param {
     uint16_t type;

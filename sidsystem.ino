@@ -53,11 +53,13 @@ SID
 */
 
 #include <LiquidCrystal.h>
+#include <math.h>
 #include "utils.h"
 #include "patch.h"
 #include "param.h"
 #include "MIDI.h"
 
+#define PROGRAMS_AVAILABE 4
 #define NO_PARAM 0xFF
 
 LiquidCrystal lcd(A5, A4, 7, 6, 5, 4);
@@ -218,7 +220,7 @@ bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int 
     if (*pPage == menu_patch) {
         // Input validation is rough now, but we only have 4 programs
         if (encoderVal < 0) { encoderVal = 0; return true; }
-        if (encoderVal > 3) { encoderVal = 3; return true; }
+        if (encoderVal > PROGRAMS_AVAILABE) { encoderVal = PROGRAMS_AVAILABE; return true; }
         if (update & 1) {
             loadPatch(encoderVal, pPatch);
             updateSynth(pPatch);
@@ -429,8 +431,7 @@ boolean loadParam(int id, param *pParam) {
         case 14:
         case 22:
             {
-                // Detune, maybe later.
-                param def = {PARAM_UNAVAIL, id, "  tune"};
+                param def = {PARAM_DETUNE, id, "  tune"};
                 def.name[0] = osc;
                 return copyParam(&def, pParam);
             }
@@ -513,6 +514,16 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
         };
         return copyPatch(&factory, pProg);
     }
+    else if (id == 4) {
+        patchSettings factory = {
+            1, 0, 0, 15, 14, 5, 1,
+            1, 0, 0, 15, 14, 5, 1, 4,
+            1, 0, 0, 15, 14, 5, 1, 8,
+            1024, 4, 0, 0,
+            id, "Sawbass",
+        };
+        return copyPatch(&factory, pProg);
+    }
     return false;
 }
 
@@ -548,42 +559,52 @@ void updateSynth(livePatch *p) {
     }
 }
 
-void noteToRegisters(livePatch *p, int played, char osc) {
-    // Set the livePatch active note (this method needs a better name)
-    p->note = played;
-
+void noteToRegisters(livePatch *p, char osc) {
     // Values for C7 through B7.
     // B7, G7 & G#7 intentionally differ from the hex values in the data sheet
-    static uint32_t octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
+    const uint32_t octave[12] = {0x892B, 0x9153, 0x99F7, 0xA31F, 0xACD2, 0xB719, 0xC1FC,
         0xCD85, 0xD9BD, 0xE6B0, 0xF467, 0x102F0};
 
-    uint32_t note = octave[played % 12];
-    int shift = (7 - (played / 12));
+    uint32_t note = octave[p->note % 12];
+    int shift = (7 - (p->note / 12));
     note = note >> shift;
-    uint8_t freqLo = note & 0xFF;
-    uint8_t freqHi = note >> 8;
 
+    lcd.clear();
     // 'u' is for unison! ...and updates all registers.
     if (osc == 'u' || osc == 'a') {
-        p->registers[0] = freqLo;
-        p->registers[1] = freqHi;
+        lcd.print(note);
+        // Currently no detune for osc a
+        p->registers[0] = note & 0xFF;
+        p->registers[1] = note >> 8;
     }
     if (osc == 'u' || osc == 'b') {
-        p->registers[7] = freqLo;
-        p->registers[8] = freqHi;
+        uint16_t n = note;
+        if (p->patch.detuneOscB){
+            n = n * pow(2, (float)p->patch.detuneOscB / 120);
+        }
+        lcd.print(':');
+        lcd.print(n);
+        p->registers[7] = n & 0xFF;
+        p->registers[8] = n >> 8;
     }
     if (osc == 'u' || osc == 'c') {
-        p->registers[14] = freqLo;
-        p->registers[15] = freqHi;
+        uint16_t n = note;
+        if (p->patch.detuneOscC) {
+            n = n * pow(2, (float)p->patch.detuneOscC / 120);
+        }
+        lcd.print(':');
+        lcd.print(n);
+        p->registers[14] = n & 0xFF;
+        p->registers[15] = n >> 8;
     }
 }
 
 // Return NO_PARAM or the parameter id played.
 uint8_t updatePerformance(livePatch *p) {
     // Control registers.
-    static uint8_t controlReg[3] = {4, 11, 18};
+    const uint8_t controlReg[3] = {4, 11, 18};
     // Frequency registers
-    static uint8_t freqReg[3][2] = {{0, 1}, {7, 8}, {14, 15}};
+    const uint8_t freqReg[3][2] = {{0, 1}, {7, 8}, {14, 15}};
     static uint8_t lastNote = 0; // first bit is on/off, 7-bits are note.
 
     // Ignore MIDI channels for now.
@@ -593,7 +614,8 @@ uint8_t updatePerformance(livePatch *p) {
         // Control registers
         //patchToRegisters(p);
         if (midiOn[2] > 0) {
-            noteToRegisters(p, midiOn[1], 'u');
+            p->note = midiOn[1];
+            noteToRegisters(p, 'u');
             for (int i = 0; i < 3; i++) {
                 writeSR(p, freqReg[i][0]);
                 writeSR(p, freqReg[i][1]);
@@ -636,7 +658,13 @@ uint8_t updatePerformance(livePatch *p) {
 }
 
 void updatePerfParam(livePatch *pPatch, int param, int val) {
-    setPatchValue(pPatch, param, val);
+    if (param == 14 || param == 22) {
+        // Detune is a special case.
+        noteToRegisters(pPatch, param == 14 ? 'b' : 'c');
+    }
+    else {
+        setPatchValue(pPatch, param, val);
+    }
     int loc = patchParamRegister(param);
     writeSR(pPatch, loc & 0xFF);
     if (loc & 0xFF00) {
