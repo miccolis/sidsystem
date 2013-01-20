@@ -123,6 +123,7 @@ void setup() {
     for (int i; i < 120; i++) midiAssignments[i] = 0xFF;
     MIDI.begin();
     MIDI.setHandleNoteOn(HandleNoteOn);
+    MIDI.setHandleNoteOff(HandleNoteOff);
     MIDI.setHandleControlChange(HandleControlChange);
     
     delay(500);
@@ -166,6 +167,14 @@ void HandleNoteOn(byte channel, byte note, byte velocity) {
     midiOn[1] = note;
     midiOn[2] = velocity;
 }
+
+void HandleNoteOff(byte channel, byte note, byte velocity) {
+    midiNotePlayed = true;
+    midiOn[0] = channel;
+    midiOn[1] = note;
+    midiOn[2] = 0;
+}
+
 void HandleControlChange(byte channel, byte number, byte value) {
     midiControlPlayed = true;
     midiCC[0] = channel;
