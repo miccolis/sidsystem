@@ -59,7 +59,7 @@ SID
 #include "param.h"
 #include "MIDI.h"
 
-#define PROGRAMS_AVAILABLE 5
+#define PROGRAMS_AVAILABLE 19 
 #define NO_PARAM 0xFF
 
 LiquidCrystal lcd(A5, A4, 7, 6, 5, 4);
@@ -539,6 +539,146 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
             0, 0, 0, 0, 0, 0, 1, 50,
             200, 4, 1, 0,
             id, "Bowser",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 6) {
+        patchSettings factory = {
+            2, 500,  12, 7, 0, 12, 1,
+            6, 1000, 12, 8, 0, 12, 1, 10,
+            6, 2000, 12, 9, 0, 12, 1, 20,
+            2000, 1, 0, 0,
+            id, "syncpad",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 7) {
+        patchSettings factory = {
+            7, 0, 1, 2, 10, 5, 1,
+            0, 0, 1, 4, 12, 5, 1, 0,
+            0, 0, 5, 4, 15, 8, 0, 50,
+            1320, 2, 3, 0,
+            id, "digi",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 8) {
+        patchSettings factory = {
+            0, 0, 3, 10, 5, 5, 1,
+            3, 0, 3, 10, 5, 5, 1, 1,
+            0, 0, 0, 0, 0, 0, 1, 50,
+            2000, 2, 0, 0,
+            id, "modmod",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 9) {
+        patchSettings factory = {
+            0, 0, 3, 3, 9, 6, 1,
+            4, 0, 3, 3, 9, 6, 1, 10,
+            0, 0, 0, 5, 3, 6, 1, 2,
+            2000, 2, 0, 0,
+            id, "sings",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 10) {
+        patchSettings factory = {
+            1, 0, 3, 3, 9, 6, 1,
+            5, 0, 3, 3, 9, 6, 1, 10,
+            5, 0, 0, 5, 3, 6, 1, 40,
+            700, 3, 1, 0,
+            id, "pluky",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 11) {
+        patchSettings factory = {
+            7, 0, 0, 3, 0, 0, 1,
+            3, 0, 1, 2, 13, 4, 1, 10,
+            3, 0, 1, 2, 13, 4, 1, 20,
+            1400, 2, 14, 0,
+            id, "boomer",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 12) {
+        patchSettings factory = {
+            7, 0, 0, 3, 0, 0, 1,
+            7, 0, 1, 2, 13, 4, 1, 5,
+            3, 0, 1, 2, 13, 4, 1, 1,
+            1400, 2, 1, 0,
+            id, "metalsc",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 13) {
+        patchSettings factory = {
+            0, 0, 1, 4, 13, 4, 1,
+            4, 0, 1, 4, 13, 6, 1, 60,
+            0, 0, 5, 2, 13, 4, 1, 2,
+            2000, 2, 0, 0,
+            id, "slider",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 14) {
+        patchSettings factory = {
+            0, 0, 4, 0, 15, 3, 1,
+            5, 0, 0, 3, 10, 0, 1, 10,
+            5, 0, 0, 3, 10, 0, 1, 8,
+            2000, 4, 0, 0,
+            id, "lowrm",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 15) {
+        patchSettings factory = {
+            0, 0, 4, 4, 12, 3, 0,
+            7, 0, 0, 0, 0, 0, 1, 0,
+            3, 0, 2, 4, 11, 0, 1, 2,
+            2000, 4, 0, 0,
+            id, "nring",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 16) {
+        patchSettings factory = {
+            0, 0, 1, 4, 12, 3, 0,
+            4, 0, 1, 4, 12, 0, 0, 5,
+            7, 0, 0, 4, 0, 0, 1, 0,
+            2000, 4, 2, 0,
+            id, "tin",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 17) {
+        patchSettings factory = {
+            2, 1400, 1, 4, 12, 3, 1,
+            2, 300,  1, 4, 12, 3, 1, 2,
+            3, 0,    0, 4, 10, 8, 0, 0,
+            2000, 0, 0, 0,
+            id, "pcomplx",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 18) {
+        patchSettings factory = {
+            3, 0,    1, 4, 8, 3, 1,
+            2, 1000, 1, 4, 8, 3, 1, 0,
+            3, 0,    1, 4, 8, 3, 0, 10,
+            2000, 0, 0, 0,
+            id, "rounds",
+        };
+        return copyPatch(&factory, pProg);
+    }
+    else if (id == 19) {
+        patchSettings factory = {
+            0, 0, 4, 4, 8, 6, 0,
+            4, 0, 4, 4, 8, 6, 0, 2,
+            4, 0, 3, 4, 8, 3, 0, 64,
+            2000, 0, 1, 0,
+            id, "fff",
         };
         return copyPatch(&factory, pProg);
     }
