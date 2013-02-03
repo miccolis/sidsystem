@@ -61,13 +61,9 @@ struct livePatch {
 // Returns two bytes, one register value in each.
 uint16_t patchParamRegister(int param);
 
-int *loadPatchValuePtr(int param, livePatch *p);
+void patchToRegisters(livePatch *p);
 
 int loadPatchValue(int param, livePatch *p);
-
-void patchUpdateRegister(livePatch *p, int param);
-
-void patchToRegisters(livePatch *p);
 
 // Update the setting, and the register value.
 void setPatchValue(livePatch *p, int param, int val);

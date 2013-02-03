@@ -773,7 +773,6 @@ uint8_t updatePerformance(livePatch *p) {
         midiNotePlayed = false;
         
         // Control registers
-        //patchToRegisters(p);
         if (midiOn[2] > 0) {
             p->note = midiOn[1];
             noteToRegisters(p, 'u');
