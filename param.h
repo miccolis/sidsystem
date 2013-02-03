@@ -1,6 +1,7 @@
 /*
  * A parameter
  */
+#include <inttypes.h>
 
 #define PARAMNAME_LEN 8 // Max length of param names.
 
@@ -19,13 +20,6 @@ struct param {
     char name[8];
 };
 
-bool copyParam(param *pSrc, param *pDest) {
-    pDest->type = pSrc->type;
-    pDest->id = pSrc->id;
-    setString(pSrc->name, pDest->name, PARAMNAME_LEN);
-    return true;
-}
+bool copyParam(param *pSrc, param *pDest);
 
-int paramLimit(param *p) {
-    return (p->type & PARAM_LMASK) - 1;
-}
+int paramLimit(param *p);
