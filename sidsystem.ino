@@ -146,6 +146,9 @@ void loop() {
     static param parameter;       // Active parameter (ie being edited)
     static int value = 0;         // Value of parameter.
 
+    static unsigned long lastUpdate  = 0;
+    static bool needsUpdate = false;
+
     if (page == menu_start) {
         page = menu_patch;
         loadPatch(0, &patch);
@@ -153,11 +156,16 @@ void loop() {
     }
 
     MIDI.read();
-    uint8_t paramUpdate = updatePerformance(&patch);
 
-    int inputUpdate = pollButtons();
-    if (updateState(&page, &patch, &parameter, &value, inputUpdate, paramUpdate))
+    needsUpdate = updateState(&page, &patch, &parameter, &value, pollButtons(),
+                                updatePerformance(&patch)) || needsUpdate;
+
+    // Limit frequency of UI updates.
+    if (needsUpdate && lastUpdate < (millis() + 500)) {
         updateMenu(&page, &patch, &parameter, &value);
+        lastUpdate = millis();
+        needsUpdate = false;
+    }
 }
 
 // MIDI Callbacks
