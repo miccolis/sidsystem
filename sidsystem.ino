@@ -705,8 +705,8 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
 // SID management
 void writeSidRegister(byte loc, byte val) {
     digitalWrite(sr_st_cp, LOW);
-    shiftOut(sr_ds , sr_sh_cp, MSBFIRST, loc);
-    shiftOut(sr_ds , sr_sh_cp, MSBFIRST, val);
+    shiftOut(sr_ds , sr_sh_cp, LSBFIRST, loc);
+    shiftOut(sr_ds , sr_sh_cp, LSBFIRST, val);
     digitalWrite(sr_st_cp, HIGH);
 
     // Data is written as clock goes from high to low.
