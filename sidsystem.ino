@@ -113,11 +113,11 @@ void loop() {
             int n = atoi(s);
             uint8_t noteOn[] = {0, n, 127};
             uint8_t noteOff[] = {0, n, 0};
-            Serial.print("Note on");
-            Serial.println(n);
+            Serial.println("Note on");
             updatePerformance(&patch, true, 0, noteOn); // patch, note, control, note message
             delay(250);
             updatePerformance(&patch, true, 0, noteOff); // patch, note, control, note message
+            Serial.println("Note off");
         }
         else {
             Serial.println("Invalid command");
@@ -127,238 +127,6 @@ void loop() {
     }
 
 }
-
-//// Update system state based on input. Responsible for validation.
-//// Return true if menu should be updated.
-//bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update, uint8_t playedParam) {
-//    static int curEncoderVal = -1;
-//
-//    // Early condition checks:
-//    // 1. If the encoder has changed, we proceed
-//    if (curEncoderVal != encoderVal) curEncoderVal = encoderVal;
-//    // 2. If there aren't input updates, nor CC messages, we bail.
-//    else if (update == 0 && playedParam == NO_PARAM) return false;
-//
-//    if (*pPage == menu_patch) {
-//        // Input validation is rough now, but we only have 4 programs
-//        if (encoderVal < 0) { encoderVal = 0; return true; }
-//        if (encoderVal > PROGRAMS_AVAILABLE) { encoderVal = PROGRAMS_AVAILABLE; return true; }
-//        if (update & 1) {
-//            loadPatch(encoderVal, pPatch);
-//            updateSynth(pPatch);
-//            loadParam(0, pParam);
-//            *pValue = loadPatchValue(pParam->id, pPatch);
-//            *pPage = menu_param;
-//        }
-//        else {
-//            *pValue = encoderVal;
-//        }
-//        return true;
-//    }
-//    else if (*pPage == menu_param) {
-//        if (encoderVal < -1) { encoderVal = -1; return true; }
-//        if (encoderVal > 26) { encoderVal = 26; return true; }
-//
-//        loadParam(encoderVal, pParam);
-//        *pValue = loadPatchValue(pParam->id, pPatch);
-//
-//        if (update & 1) {
-//            *pPage = menu_value;
-//            encoderVal = *pValue;
-//        }
-//        else if (update & 2) {
-//            *pPage = menu_patch;
-//            encoderVal = pPatch->patch.id;
-//        }
-//        return true;
-//    }
-//    else if (*pPage == menu_value) {
-//        if (playedParam != NO_PARAM) {
-//            // If we're responding to a CC, update the UI if it's the visible
-//            // one, and back out of it.
-//            if (playedParam == pParam->id) {
-//                *pPage = menu_param;
-//                encoderVal = pParam->id;
-//                return true;
-//            }
-//            else {
-//                return false;
-//            }
-//        }
-//
-//        // Respond to inputs.
-//        if (update & 1) {
-//            // Backout to parameter selection
-//            *pPage = menu_param;
-//            encoderVal = pParam->id;
-//            return true;
-//        }
-//        else if (update & 2) {
-//            // Update midi mapping...
-//            midiAssignments[midiCC[1]] = pParam->id;
-//            lcd.clear();
-//            lcd.print("Assigned CC");
-//            lcd.setCursor(0,1);
-//            lcd.print(midiCC[1]);
-//            delay(1000);
-//            // ...and backout.
-//            *pPage = menu_param;
-//            encoderVal = pParam->id;
-//            return true;
-//        }
-//
-//        // Handle encoder.
-//        int limit = paramLimit(pParam);
-//        if (encoderVal < 0) encoderVal = 0;
-//        else if (encoderVal > limit ) encoderVal = limit;
-//        else {
-//            *pValue = encoderVal;
-//            updatePerfParam(pPatch, pParam->id, *pValue);
-//        }
-//        return true;
-//    }
-//}
-
-// Parameter methods
-//boolean loadParamOption(param *pParam, int idx, char *pStr) {
-//    if (pParam->id == param_confirm) {
-//        if      (idx == 0) setString("Cancel", pStr, PARAMNAME_LEN);
-//        else if (idx == 1) setString("Yes", pStr, PARAMNAME_LEN);
-//        else return false;
-//        return true;
-//    }
-//    switch (pParam->id) {
-//        case 0:
-//        case 7:
-//        case 15:
-//            // Waveform
-//            if      (idx == 0) setString("Triangle", pStr, PARAMNAME_LEN);
-//            else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
-//            else if (idx == 2) setString("Pulse", pStr, PARAMNAME_LEN);
-//            else if (idx == 3) setString("Ring mod", pStr, PARAMNAME_LEN);
-//            else if (idx == 4) setString("Sync Tri", pStr, PARAMNAME_LEN);
-//            else if (idx == 5) setString("Sync Saw", pStr, PARAMNAME_LEN);
-//            else if (idx == 6) setString("Sync Pul", pStr, PARAMNAME_LEN);
-//            else if (idx == 7) setString("Noise", pStr, PARAMNAME_LEN);
-//            else return false;
-//            return true;
-//        case 6:
-//        case 13:
-//        case 21:
-//            if (idx == 0) setString("Off", pStr, PARAMNAME_LEN);
-//            else if (idx == 1) setString("On", pStr, PARAMNAME_LEN);
-//            else return false;
-//            return true;
-//        case 25:
-//            // Filter mode
-//            if      (idx == 0) setString("Low Pass", pStr, PARAMNAME_LEN);
-//            else if (idx == 1) setString("Hi Pass", pStr, PARAMNAME_LEN);
-//            else if (idx == 2) setString("Band Pass", pStr, PARAMNAME_LEN);
-//            else if (idx == 3) setString("Notch", pStr, PARAMNAME_LEN);
-//            else return false;
-//            return true;
-//    }
-//    return false;
-//}
-
-//boolean loadParam(int id, param *pParam) {
-//    if (id == param_confirm) {
-//        param def = {PARAM_LABEL, id, "Save?"};
-//        return copyParam(&def, pParam);
-//    }
-//
-//    char osc = 'A';
-//    if      (id > 6 && id < 15)  osc = 'B';
-//    else if (id > 14 && id < 23) osc = 'C';
-//
-//    switch (id) {
-//        case 0:
-//        case 7:
-//        case 15:
-//            {
-//                param def = {PARAM_LABEL | 8 , id, "  Wave"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 1:
-//        case 8:
-//        case 16:
-//            {
-//                param def = {PARAM_12BIT, id, "  PW"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 2:
-//        case 9:
-//        case 17:
-//            {
-//                param def = {PARAM_4BIT, id, "  Att"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 3:
-//        case 10:
-//        case 18:
-//            {
-//                param def = {PARAM_4BIT, id, "  Dec"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 4:
-//        case 11:
-//        case 19:
-//            {
-//                param def = {PARAM_4BIT, id, "  Sus"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 5:
-//        case 12:
-//        case 20:
-//            {
-//                param def = {PARAM_4BIT, id, "  Rel"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 6:
-//        case 13:
-//        case 21:
-//            {
-//                param def = {PARAM_LABEL | PARAM_1BIT, id, "  Filt"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 14:
-//        case 22:
-//            {
-//                param def = {PARAM_DETUNE, id, "  tune"};
-//                def.name[0] = osc;
-//                return copyParam(&def, pParam);
-//            }
-//        case 23:
-//            {
-//                // Filter Cutoff in HZ
-//                param def = {PARAM_11BIT, id, "Cutoff"};
-//                return copyParam(&def, pParam);
-//            }
-//        case 24:
-//            {
-//                param def = {PARAM_4BIT, id, "Reso"};
-//                return copyParam(&def, pParam);
-//            }
-//        case 25:
-//            {
-//                param def = {PARAM_LABEL | 4, id, "Mode"};
-//                return copyParam(&def, pParam);
-//            }
-//        case 26:
-//            {
-//                param def = {PARAM_4BIT, id, "Volume"};
-//                return copyParam(&def, pParam);
-//            }
-//    }
-//    return false;
-//}
 
 // Patch methods
 bool loadPatchName(int id, char *pStr) {
@@ -579,10 +347,21 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
 
 // SID management
 void writeSidRegister(byte loc, byte val) {
-    //digitalWrite(sr_st_cp, LOW);
-    //shiftOut(sr_ds , sr_sh_cp, LSBFIRST, loc);
-    //shiftOut(sr_ds , sr_sh_cp, LSBFIRST, val);
-    //digitalWrite(sr_st_cp, HIGH);
+
+    digitalWrite(sid_a0, loc & B00001);
+    digitalWrite(sid_a1, loc & B00010);
+    digitalWrite(sid_a2, loc & B00100);
+    digitalWrite(sid_a3, loc & B01000);
+    digitalWrite(sid_a4, loc & B10000);
+
+    digitalWrite(sid_d0, val & B00000001);
+    digitalWrite(sid_d1, val & B00000010);
+    digitalWrite(sid_d2, val & B00000100);
+    digitalWrite(sid_d3, val & B00001000);
+    digitalWrite(sid_d4, val & B00010000);
+    digitalWrite(sid_d5, val & B00100000);
+    digitalWrite(sid_d6, val & B01000000);
+    digitalWrite(sid_d7, val & B10000000);
 
     // Data is written as clock goes from high to low.
     digitalWrite(sid_cs, LOW);
