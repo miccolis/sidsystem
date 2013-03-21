@@ -6,94 +6,49 @@ A modern MOS 6581 powered Synthesizer.
 
 The circuit:
 
-LCD
-
- * RS pin to digital pin A5
- * Enable pin to digital pin A4
- * LCD4 pin to digital pin 7
- * LCD5 pin to digital pin 6
- * LCD6 pin to digital pin 5
- * LCD7 pin to digital pin 4
- * R/W pin to ground
- * 10K resistor:
- * ends to +5V and ground
- * (???)wiper to LCD VO pin (pin 3)
- 
-Rotary Encoder 
-
- * A to digital pin 2
- * B to ditigal pin 3
- * button digital pin 8
-
-Esc button
-
- * momentary switch to digital pin 10
-
-MIDI
-
- * IN to digital pin 0 (must be disconnected during usb transfers)
-
-Shift register A
-
- * DS to analogue pin 0
- * ST_CP to analogue pin 1
- * SH_CP to analogue pin 2
-
-Shift register B
-
- * ST_CP to analogue pin 1
- * SH_CP to analogue pin 0
- * DS to Shift register Q7'
 
 SID
 
  * CLK from digital pin 9
- * CS from analogue pin 3
+ * CS from analogue pin 0
+ * D0 - D7 from digital 10, 8 - 2
+ * A0 - 4 from analogue 5 - 1
  
 */
 
-#include <LiquidCrystal.h>
+#include <inttypes.h>
 #include <math.h>
 #include "utils.h"
 #include "patch.h"
 #include "param.h"
-#include "MIDI.h"
 
 #define PROGRAMS_AVAILABLE 19 
 #define NO_PARAM 0xFF
 
-LiquidCrystal lcd(A5, A4, 7, 6, 5, 4);
-const int enc_a = 2;
-const int enc_b = 3;
-const int enc_button = 8;
-const int button_esc = 10;
+// Clock settings for pin D9 are in setup()
 
-const int sr_ds = A0;
-const int sr_st_cp= A1;
-const int sr_sh_cp= A2;
+// CS
+const int sid_cs = A0;
 
-const int sid_cs = A3;
+// Address
+const int sid_a0 = A5;
+const int sid_a1 = A4;
+const int sid_a2 = A3;
+const int sid_a3 = A2;
+const int sid_a4 = A1;
 
-// Clock settings are duplicated in setup()
-const int sid_clk_reg = PORTB;
-const int sid_clk_bit = DDB1;
+// Data
+const int sid_d0 = 10;
+const int sid_d1 = 8;
+const int sid_d2 = 7;
+const int sid_d3 = 6;
+const int sid_d4 = 5;
+const int sid_d5 = 4;
+const int sid_d6 = 3;
+const int sid_d7 = 2;
 
-const int menu_start = 0;
-const int menu_patch = 1;
-const int menu_param = 2;
-const int menu_value = 3;
-const int param_confirm = -1;
-
-const int lcd_width = 16;
-const int lcd_lines = 2;
-
-// Global state.
-signed int encoderVal;
-uint8_t midiOn[3];
-uint8_t midiCC[3];
-bool midiNotePlayed = false;
-bool midiControlPlayed = false;
-uint8_t midiAssignments[120];
+String command = "";
+boolean commandAvail = false;
 
 void setup() {
 
@@ -103,387 +58,307 @@ void setup() {
     OCR1A = 7;                         //top value for counter
     TCCR1B = _BV(WGM12) | _BV(CS10);   //CTC mode, prescaler clock/1
 
-    pinMode(enc_button, INPUT);
-    
-    pinMode(enc_a, INPUT);
-    digitalWrite(enc_a, HIGH);
-    pinMode(enc_b, INPUT);
-    digitalWrite(enc_b, HIGH);
-
-    pinMode(button_esc, INPUT);
-    digitalWrite(button_esc, HIGH);
-
-    pinMode(sr_ds, OUTPUT);
-    pinMode(sr_sh_cp, OUTPUT);
-    pinMode(sr_st_cp, OUTPUT);
-
     pinMode(sid_cs, OUTPUT);
     digitalWrite(sid_cs, HIGH);
 
-    for (int i; i < 120; i++) midiAssignments[i] = 0xFF;
-    MIDI.begin();
-    MIDI.setHandleNoteOn(HandleNoteOn);
-    MIDI.setHandleNoteOff(HandleNoteOff);
-    MIDI.setHandleControlChange(HandleControlChange);
-    
-    delay(500);
-    lcd.begin(lcd_width, lcd_lines);
-    lcd.print("<< powered up >>");
+    pinMode(sid_a0, OUTPUT);
+    pinMode(sid_a1, OUTPUT);
+    pinMode(sid_a2, OUTPUT);
+    pinMode(sid_a3, OUTPUT);
+    pinMode(sid_a4, OUTPUT);
 
-    noInterrupts();
-    attachInterrupt(0, readEncoder, CHANGE);
-    attachInterrupt(1, readEncoder, CHANGE);
-    interrupts();
+    pinMode(sid_d0, OUTPUT);
+    pinMode(sid_d1, OUTPUT);
+    pinMode(sid_d2, OUTPUT);
+    pinMode(sid_d3, OUTPUT);
+    pinMode(sid_d4, OUTPUT);
+    pinMode(sid_d5, OUTPUT);
+    pinMode(sid_d6, OUTPUT);
+    pinMode(sid_d7, OUTPUT);
+
+    command.reserve(20);
 
     delay(500);
-    lcd.blink();
-    lcd.cursor();
+    Serial.begin(9600);
+    Serial.println("<< powered up >>");
+
 }
 
 void loop() {
-    static int page = menu_start; // "page" see "menu_x" constants.
     static livePatch patch;       // Active program (ie being played & edited)
-    static param parameter;       // Active parameter (ie being edited)
-    static int value = 0;         // Value of parameter.
 
-    static unsigned long lastUpdate  = 0;
-    static bool needsUpdate = false;
-
-    if (page == menu_start) {
-        page = menu_patch;
-        loadPatch(0, &patch);
-        updateSynth(&patch);
-    }
-
-    MIDI.read();
-
-    needsUpdate = updateState(&page, &patch, &parameter, &value, pollButtons(),
-                                updatePerformance(&patch)) || needsUpdate;
-
-    // Limit frequency of UI updates.
-    if (needsUpdate && lastUpdate < (millis() + 500)) {
-        updateMenu(&page, &patch, &parameter, &value);
-        lastUpdate = millis();
-        needsUpdate = false;
-    }
-}
-
-// MIDI Callbacks
-void HandleNoteOn(byte channel, byte note, byte velocity) {
-    midiNotePlayed = true;
-    midiOn[0] = channel;
-    midiOn[1] = note;
-    midiOn[2] = velocity;
-}
-
-void HandleNoteOff(byte channel, byte note, byte velocity) {
-    midiNotePlayed = true;
-    midiOn[0] = channel;
-    midiOn[1] = note;
-    midiOn[2] = 0;
-}
-
-void HandleControlChange(byte channel, byte number, byte value) {
-    midiControlPlayed = true;
-    midiCC[0] = channel;
-    midiCC[1] = number;
-    midiCC[2] = value;
-}
-
-// Interrupt handler for the rotary encoder.
-void readEncoder() {
-    noInterrupts();
-    static uint8_t prev;
-    uint8_t cur = (digitalRead(enc_b) << 1) | (digitalRead(enc_a));
-    if (prev != cur) {
-        if (cur == 3) encoderVal += (prev == 1 ? 1 : -1);
-        prev = cur;
-    }
-    interrupts();
-}
-
-// Responsible for detecting button presses.
-int pollButtons() {
-    static int buttons[2] = {enc_button, button_esc};
-    static unsigned long pressed[2];
-    static short int buttonState[2];
-    unsigned long t = millis();
-    int update = 0;
-
-    for (int i = 0; i < 2; i++) {
-        if (buttonState[i] != digitalRead(buttons[i]) && (t > pressed[i] + 100)) {
-            pressed[i] = t;
-            buttonState[i] = digitalRead(buttons[i]);
-            // Knob push
-            if (buttons[i] == enc_button && buttonState[i] == 1) update = 1;
-            // Esc button
-            if (buttons[i] == button_esc && buttonState[i] == 0) update += 2;
+    while (Serial.available()) {
+        char inChar = Serial.read(); 
+        if (inChar == '\n') {
+            commandAvail = true;
+        } 
+        else {
+            command += inChar;
         }
     }
-    return update;
-}
 
-// Update system state based on input. Responsible for validation.
-// Return true if menu should be updated.
-bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update, uint8_t playedParam) {
-    static int curEncoderVal = -1;
-
-    // Early condition checks:
-    // 1. If the encoder has changed, we proceed
-    if (curEncoderVal != encoderVal) curEncoderVal = encoderVal;
-    // 2. If there aren't input updates, nor CC messages, we bail.
-    else if (update == 0 && playedParam == NO_PARAM) return false;
-
-    if (*pPage == menu_patch) {
-        // Input validation is rough now, but we only have 4 programs
-        if (encoderVal < 0) { encoderVal = 0; return true; }
-        if (encoderVal > PROGRAMS_AVAILABLE) { encoderVal = PROGRAMS_AVAILABLE; return true; }
-        if (update & 1) {
-            loadPatch(encoderVal, pPatch);
-            updateSynth(pPatch);
-            loadParam(0, pParam);
-            *pValue = loadPatchValue(pParam->id, pPatch);
-            *pPage = menu_param;
+    if (commandAvail) {
+        Serial.println(command);
+        if (command.charAt(0) == 'p') {
+            char s[2];
+            command.substring(1).toCharArray(s, 2);
+            int p = atoi(s);
+            loadPatch(p, &patch);
+            updateSynth(&patch);
+            Serial.println(patch.patch.name);
+        }
+        else if (command.charAt(0) == 'n') {
+            char s[2];
+            command.substring(1).toCharArray(s, 2);
+            int n = atoi(s);
+            uint8_t noteOn[] = {0, n, 127};
+            uint8_t noteOff[] = {0, n, 0};
+            Serial.print("Note on");
+            Serial.println(n);
+            updatePerformance(&patch, true, 0, noteOn); // patch, note, control, note message
+            delay(250);
+            updatePerformance(&patch, true, 0, noteOff); // patch, note, control, note message
         }
         else {
-            *pValue = encoderVal;
+            Serial.println("Invalid command");
         }
-        return true;
+        command = "";
+        commandAvail = false;
     }
-    else if (*pPage == menu_param) {
-        if (encoderVal < -1) { encoderVal = -1; return true; }
-        if (encoderVal > 26) { encoderVal = 26; return true; }
 
-        loadParam(encoderVal, pParam);
-        *pValue = loadPatchValue(pParam->id, pPatch);
-
-        if (update & 1) {
-            *pPage = menu_value;
-            encoderVal = *pValue;
-        }
-        else if (update & 2) {
-            *pPage = menu_patch;
-            encoderVal = pPatch->patch.id;
-        }
-        return true;
-    }
-    else if (*pPage == menu_value) {
-        if (playedParam != NO_PARAM) {
-            // If we're responding to a CC, update the UI if it's the visible
-            // one, and back out of it.
-            if (playedParam == pParam->id) {
-                *pPage = menu_param;
-                encoderVal = pParam->id;
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-
-        // Respond to inputs.
-        if (update & 1) {
-            // Backout to parameter selection
-            *pPage = menu_param;
-            encoderVal = pParam->id;
-            return true;
-        }
-        else if (update & 2) {
-            // Update midi mapping...
-            midiAssignments[midiCC[1]] = pParam->id;
-            lcd.clear();
-            lcd.print("Assigned CC");
-            lcd.setCursor(0,1);
-            lcd.print(midiCC[1]);
-            delay(1000);
-            // ...and backout.
-            *pPage = menu_param;
-            encoderVal = pParam->id;
-            return true;
-        }
-
-        // Handle encoder.
-        int limit = paramLimit(pParam);
-        if (encoderVal < 0) encoderVal = 0;
-        else if (encoderVal > limit ) encoderVal = limit;
-        else {
-            *pValue = encoderVal;
-            updatePerfParam(pPatch, pParam->id, *pValue);
-        }
-        return true;
-    }
 }
 
-// Update the GUI based on system state change.
-void updateMenu(int *pPage, livePatch *pPatch, param *pParam, int *pValue) {
-
-    lcd.clear();
-    lcd.print(pPatch->patch.name);
-    lcd.setCursor(0, 1);
-
-    if (*pPage == menu_patch) {
-        char patchString[PATCHNAME_LEN] = {' '};
-        loadPatchName(*pValue, patchString);
-        lcd.print(patchString);
-        lcd.setCursor(0, 1);
-    }
-    else if (*pPage == menu_param || *pPage == menu_value) {
-        lcd.print(pParam->name);
-        lcd.setCursor(9, 1);
-        if (pParam->type & PARAM_LABEL) {
-            char optionString[PARAMNAME_LEN]= {' '};
-            loadParamOption(pParam, *pValue, optionString);
-            lcd.print(optionString);
-        }
-        else if (pParam->type != PARAM_UNAVAIL) {
-            lcd.print(*pValue);
-        }
-
-        if      (*pPage == menu_param) lcd.setCursor(0, 1);
-        else if (*pPage == menu_value) lcd.setCursor(9, 1);
-    }
-}
+//// Update system state based on input. Responsible for validation.
+//// Return true if menu should be updated.
+//bool updateState(int *pPage, livePatch *pPatch, param *pParam, int *pValue, int update, uint8_t playedParam) {
+//    static int curEncoderVal = -1;
+//
+//    // Early condition checks:
+//    // 1. If the encoder has changed, we proceed
+//    if (curEncoderVal != encoderVal) curEncoderVal = encoderVal;
+//    // 2. If there aren't input updates, nor CC messages, we bail.
+//    else if (update == 0 && playedParam == NO_PARAM) return false;
+//
+//    if (*pPage == menu_patch) {
+//        // Input validation is rough now, but we only have 4 programs
+//        if (encoderVal < 0) { encoderVal = 0; return true; }
+//        if (encoderVal > PROGRAMS_AVAILABLE) { encoderVal = PROGRAMS_AVAILABLE; return true; }
+//        if (update & 1) {
+//            loadPatch(encoderVal, pPatch);
+//            updateSynth(pPatch);
+//            loadParam(0, pParam);
+//            *pValue = loadPatchValue(pParam->id, pPatch);
+//            *pPage = menu_param;
+//        }
+//        else {
+//            *pValue = encoderVal;
+//        }
+//        return true;
+//    }
+//    else if (*pPage == menu_param) {
+//        if (encoderVal < -1) { encoderVal = -1; return true; }
+//        if (encoderVal > 26) { encoderVal = 26; return true; }
+//
+//        loadParam(encoderVal, pParam);
+//        *pValue = loadPatchValue(pParam->id, pPatch);
+//
+//        if (update & 1) {
+//            *pPage = menu_value;
+//            encoderVal = *pValue;
+//        }
+//        else if (update & 2) {
+//            *pPage = menu_patch;
+//            encoderVal = pPatch->patch.id;
+//        }
+//        return true;
+//    }
+//    else if (*pPage == menu_value) {
+//        if (playedParam != NO_PARAM) {
+//            // If we're responding to a CC, update the UI if it's the visible
+//            // one, and back out of it.
+//            if (playedParam == pParam->id) {
+//                *pPage = menu_param;
+//                encoderVal = pParam->id;
+//                return true;
+//            }
+//            else {
+//                return false;
+//            }
+//        }
+//
+//        // Respond to inputs.
+//        if (update & 1) {
+//            // Backout to parameter selection
+//            *pPage = menu_param;
+//            encoderVal = pParam->id;
+//            return true;
+//        }
+//        else if (update & 2) {
+//            // Update midi mapping...
+//            midiAssignments[midiCC[1]] = pParam->id;
+//            lcd.clear();
+//            lcd.print("Assigned CC");
+//            lcd.setCursor(0,1);
+//            lcd.print(midiCC[1]);
+//            delay(1000);
+//            // ...and backout.
+//            *pPage = menu_param;
+//            encoderVal = pParam->id;
+//            return true;
+//        }
+//
+//        // Handle encoder.
+//        int limit = paramLimit(pParam);
+//        if (encoderVal < 0) encoderVal = 0;
+//        else if (encoderVal > limit ) encoderVal = limit;
+//        else {
+//            *pValue = encoderVal;
+//            updatePerfParam(pPatch, pParam->id, *pValue);
+//        }
+//        return true;
+//    }
+//}
 
 // Parameter methods
-boolean loadParamOption(param *pParam, int idx, char *pStr) {
-    if (pParam->id == param_confirm) {
-        if      (idx == 0) setString("Cancel", pStr, PARAMNAME_LEN);
-        else if (idx == 1) setString("Yes", pStr, PARAMNAME_LEN);
-        else return false;
-        return true;
-    }
-    switch (pParam->id) {
-        case 0:
-        case 7:
-        case 15:
-            // Waveform
-            if      (idx == 0) setString("Triangle", pStr, PARAMNAME_LEN);
-            else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
-            else if (idx == 2) setString("Pulse", pStr, PARAMNAME_LEN);
-            else if (idx == 3) setString("Ring mod", pStr, PARAMNAME_LEN);
-            else if (idx == 4) setString("Sync Tri", pStr, PARAMNAME_LEN);
-            else if (idx == 5) setString("Sync Saw", pStr, PARAMNAME_LEN);
-            else if (idx == 6) setString("Sync Pul", pStr, PARAMNAME_LEN);
-            else if (idx == 7) setString("Noise", pStr, PARAMNAME_LEN);
-            else return false;
-            return true;
-        case 6:
-        case 13:
-        case 21:
-            if (idx == 0) setString("Off", pStr, PARAMNAME_LEN);
-            else if (idx == 1) setString("On", pStr, PARAMNAME_LEN);
-            else return false;
-            return true;
-        case 25:
-            // Filter mode
-            if      (idx == 0) setString("Low Pass", pStr, PARAMNAME_LEN);
-            else if (idx == 1) setString("Hi Pass", pStr, PARAMNAME_LEN);
-            else if (idx == 2) setString("Band Pass", pStr, PARAMNAME_LEN);
-            else if (idx == 3) setString("Notch", pStr, PARAMNAME_LEN);
-            else return false;
-            return true;
-    }
-    return false;
-}
+//boolean loadParamOption(param *pParam, int idx, char *pStr) {
+//    if (pParam->id == param_confirm) {
+//        if      (idx == 0) setString("Cancel", pStr, PARAMNAME_LEN);
+//        else if (idx == 1) setString("Yes", pStr, PARAMNAME_LEN);
+//        else return false;
+//        return true;
+//    }
+//    switch (pParam->id) {
+//        case 0:
+//        case 7:
+//        case 15:
+//            // Waveform
+//            if      (idx == 0) setString("Triangle", pStr, PARAMNAME_LEN);
+//            else if (idx == 1) setString("Saw", pStr, PARAMNAME_LEN);
+//            else if (idx == 2) setString("Pulse", pStr, PARAMNAME_LEN);
+//            else if (idx == 3) setString("Ring mod", pStr, PARAMNAME_LEN);
+//            else if (idx == 4) setString("Sync Tri", pStr, PARAMNAME_LEN);
+//            else if (idx == 5) setString("Sync Saw", pStr, PARAMNAME_LEN);
+//            else if (idx == 6) setString("Sync Pul", pStr, PARAMNAME_LEN);
+//            else if (idx == 7) setString("Noise", pStr, PARAMNAME_LEN);
+//            else return false;
+//            return true;
+//        case 6:
+//        case 13:
+//        case 21:
+//            if (idx == 0) setString("Off", pStr, PARAMNAME_LEN);
+//            else if (idx == 1) setString("On", pStr, PARAMNAME_LEN);
+//            else return false;
+//            return true;
+//        case 25:
+//            // Filter mode
+//            if      (idx == 0) setString("Low Pass", pStr, PARAMNAME_LEN);
+//            else if (idx == 1) setString("Hi Pass", pStr, PARAMNAME_LEN);
+//            else if (idx == 2) setString("Band Pass", pStr, PARAMNAME_LEN);
+//            else if (idx == 3) setString("Notch", pStr, PARAMNAME_LEN);
+//            else return false;
+//            return true;
+//    }
+//    return false;
+//}
 
-boolean loadParam(int id, param *pParam) {
-    if (id == param_confirm) {
-        param def = {PARAM_LABEL, id, "Save?"};
-        return copyParam(&def, pParam);
-    }
-
-    char osc = 'A';
-    if      (id > 6 && id < 15)  osc = 'B';
-    else if (id > 14 && id < 23) osc = 'C';
-
-    switch (id) {
-        case 0:
-        case 7:
-        case 15:
-            {
-                param def = {PARAM_LABEL | 8 , id, "  Wave"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 1:
-        case 8:
-        case 16:
-            {
-                param def = {PARAM_12BIT, id, "  PW"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 2:
-        case 9:
-        case 17:
-            {
-                param def = {PARAM_4BIT, id, "  Att"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 3:
-        case 10:
-        case 18:
-            {
-                param def = {PARAM_4BIT, id, "  Dec"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 4:
-        case 11:
-        case 19:
-            {
-                param def = {PARAM_4BIT, id, "  Sus"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 5:
-        case 12:
-        case 20:
-            {
-                param def = {PARAM_4BIT, id, "  Rel"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 6:
-        case 13:
-        case 21:
-            {
-                param def = {PARAM_LABEL | PARAM_1BIT, id, "  Filt"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 14:
-        case 22:
-            {
-                param def = {PARAM_DETUNE, id, "  tune"};
-                def.name[0] = osc;
-                return copyParam(&def, pParam);
-            }
-        case 23:
-            {
-                // Filter Cutoff in HZ
-                param def = {PARAM_11BIT, id, "Cutoff"};
-                return copyParam(&def, pParam);
-            }
-        case 24:
-            {
-                param def = {PARAM_4BIT, id, "Reso"};
-                return copyParam(&def, pParam);
-            }
-        case 25:
-            {
-                param def = {PARAM_LABEL | 4, id, "Mode"};
-                return copyParam(&def, pParam);
-            }
-        case 26:
-            {
-                param def = {PARAM_4BIT, id, "Volume"};
-                return copyParam(&def, pParam);
-            }
-    }
-    return false;
-}
+//boolean loadParam(int id, param *pParam) {
+//    if (id == param_confirm) {
+//        param def = {PARAM_LABEL, id, "Save?"};
+//        return copyParam(&def, pParam);
+//    }
+//
+//    char osc = 'A';
+//    if      (id > 6 && id < 15)  osc = 'B';
+//    else if (id > 14 && id < 23) osc = 'C';
+//
+//    switch (id) {
+//        case 0:
+//        case 7:
+//        case 15:
+//            {
+//                param def = {PARAM_LABEL | 8 , id, "  Wave"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 1:
+//        case 8:
+//        case 16:
+//            {
+//                param def = {PARAM_12BIT, id, "  PW"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 2:
+//        case 9:
+//        case 17:
+//            {
+//                param def = {PARAM_4BIT, id, "  Att"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 3:
+//        case 10:
+//        case 18:
+//            {
+//                param def = {PARAM_4BIT, id, "  Dec"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 4:
+//        case 11:
+//        case 19:
+//            {
+//                param def = {PARAM_4BIT, id, "  Sus"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 5:
+//        case 12:
+//        case 20:
+//            {
+//                param def = {PARAM_4BIT, id, "  Rel"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 6:
+//        case 13:
+//        case 21:
+//            {
+//                param def = {PARAM_LABEL | PARAM_1BIT, id, "  Filt"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 14:
+//        case 22:
+//            {
+//                param def = {PARAM_DETUNE, id, "  tune"};
+//                def.name[0] = osc;
+//                return copyParam(&def, pParam);
+//            }
+//        case 23:
+//            {
+//                // Filter Cutoff in HZ
+//                param def = {PARAM_11BIT, id, "Cutoff"};
+//                return copyParam(&def, pParam);
+//            }
+//        case 24:
+//            {
+//                param def = {PARAM_4BIT, id, "Reso"};
+//                return copyParam(&def, pParam);
+//            }
+//        case 25:
+//            {
+//                param def = {PARAM_LABEL | 4, id, "Mode"};
+//                return copyParam(&def, pParam);
+//            }
+//        case 26:
+//            {
+//                param def = {PARAM_4BIT, id, "Volume"};
+//                return copyParam(&def, pParam);
+//            }
+//    }
+//    return false;
+//}
 
 // Patch methods
 bool loadPatchName(int id, char *pStr) {
@@ -704,10 +579,10 @@ bool loadFactoryDefaultPatch(int id, livePatch *pProg) {
 
 // SID management
 void writeSidRegister(byte loc, byte val) {
-    digitalWrite(sr_st_cp, LOW);
-    shiftOut(sr_ds , sr_sh_cp, LSBFIRST, loc);
-    shiftOut(sr_ds , sr_sh_cp, LSBFIRST, val);
-    digitalWrite(sr_st_cp, HIGH);
+    //digitalWrite(sr_st_cp, LOW);
+    //shiftOut(sr_ds , sr_sh_cp, LSBFIRST, loc);
+    //shiftOut(sr_ds , sr_sh_cp, LSBFIRST, val);
+    //digitalWrite(sr_st_cp, HIGH);
 
     // Data is written as clock goes from high to low.
     digitalWrite(sid_cs, LOW);
@@ -769,7 +644,7 @@ void noteToRegisters(livePatch *p, char osc) {
 }
 
 // Return NO_PARAM or the parameter id played.
-uint8_t updatePerformance(livePatch *p) {
+uint8_t updatePerformance(livePatch *p, int midiNotePlayed, int midiControlPlayed, uint8_t midiOn[3]) {
     // Control registers.
     const uint8_t controlReg[3] = {4, 11, 18};
     // Frequency registers
@@ -812,16 +687,16 @@ uint8_t updatePerformance(livePatch *p) {
         }
     }
 
-    if (midiControlPlayed) {
-        midiControlPlayed = false;
-        if (midiAssignments[midiCC[1]] != NO_PARAM) {
-            param target;
-            loadParam(midiAssignments[midiCC[1]], &target);
-            int v = (float)midiCC[2] / 127 * (float)(paramLimit(&target));
-            updatePerfParam(p, target.id, v);
-            return target.id;
-        }
-    }
+    //if (midiControlPlayed) {
+    //    midiControlPlayed = false;
+    //    if (midiAssignments[midiCC[1]] != NO_PARAM) {
+    //        param target;
+    //        loadParam(midiAssignments[midiCC[1]], &target);
+    //        int v = (float)midiCC[2] / 127 * (float)(paramLimit(&target));
+    //        updatePerfParam(p, target.id, v);
+    //        return target.id;
+    //    }
+    //}
     return NO_PARAM;
 }
 
